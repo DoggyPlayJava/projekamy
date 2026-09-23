@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Production build
+dist/
+*/dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment & local
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Agent internal
+.agents/
+.superpowers/
+skills-lock.json
+
+# OS
+.DS_Store
+Thumbs.db

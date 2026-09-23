@@ -29,8 +29,8 @@
 // ========================================================================================
 // 1. KONFIGURASI WIFI & SUPABASE (SILA TUKAR NAMA WIFI & PASSWORD ANDA DI SINI)
 // ========================================================================================
-const char* WIFI_SSID     = "NAMA_WIFI_ATAU_HOTSPOT_ANDA";   // Contoh: "Hotspot Saya"
-const char* WIFI_PASSWORD = "PASSWORD_WIFI_ANDA";           // Contoh: "12345678"
+const char* WIFI_SSID     = "Airy";   // Contoh: "Hotspot Saya"
+const char* WIFI_PASSWORD = "sedakgitu";           // Contoh: "12345678"
 
 // URL & Anon Key Supabase Projek Anda
 const char* SUPABASE_URL  = "https://adqhtjzbzeyiuzvdujnf.supabase.co";
