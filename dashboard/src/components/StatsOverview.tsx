@@ -1,5 +1,5 @@
 import React from 'react';
-import { Droplet, Activity, CheckCircle2, Waves, Gauge } from 'lucide-react';
+import { Droplet, Activity, CheckCircle2, Waves, Gauge, GlassWater } from 'lucide-react';
 import type { PotStatus, WateringLog } from '../types';
 
 interface StatsOverviewProps {
@@ -16,14 +16,22 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ pots, wateringLogs
   // Count active pumps
   const activePumpsCount = pots.filter((p) => p.pump_state).length;
 
-  // Count today's watering events
+  // Count today's watering events & volumetric water used
   const today = new Date().toDateString();
-  const todayWateringCount = wateringLogs.filter(
+  const todayLogs = wateringLogs.filter(
     (log) => new Date(log.watered_at).toDateString() === today
-  ).length;
+  );
+  const todayWateringCount = todayLogs.length;
+
+  // 20 ml/s (~1.2L/min) standard 5V submersible pump flow estimation
+  const totalSecondsToday = todayLogs.reduce(
+    (acc, log) => acc + (log.duration_seconds || 5),
+    0
+  );
+  const estimatedLitersToday = (totalSecondsToday * 0.02).toFixed(2);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
       {/* 1. Purata Kelembapan */}
       <div className="glass-card glass-card-hover rounded-2xl p-5 border border-white/60 relative overflow-hidden group">
         <div className="flex items-center justify-between">
@@ -107,7 +115,33 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ pots, wateringLogs
         </div>
       </div>
 
-      {/* 4. Status Tangki Air */}
+      {/* 4. Anggaran Penggunaan Air (Eco / Volumetrik) */}
+      <div className="glass-card glass-card-hover rounded-2xl p-5 border border-white/60 relative overflow-hidden group">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Penggunaan Air Hari Ini
+            </p>
+            <div className="flex items-baseline gap-2 mt-2">
+              <span className="text-3xl font-extrabold text-slate-800">
+                {estimatedLitersToday}
+              </span>
+              <span className="text-xs text-slate-500 font-semibold">Liter</span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-800">
+                Volumetrik ~20ml/s
+              </span>
+              <span className="text-[11px] text-slate-500 font-medium">({totalSecondsToday}s siram)</span>
+            </div>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <GlassWater className="w-6 h-6" />
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Status Tangki Air */}
       <div className="glass-card glass-card-hover rounded-2xl p-5 border border-white/60 relative overflow-hidden group">
         <div className="flex items-center justify-between">
           <div>

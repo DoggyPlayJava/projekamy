@@ -1,5 +1,5 @@
 import React from 'react';
-import { History, CheckCircle, Smartphone, Cpu, Droplets } from 'lucide-react';
+import { History, CheckCircle, Smartphone, Cpu, Droplets, Download } from 'lucide-react';
 import type { WateringLog } from '../types';
 
 interface WateringLogTableProps {
@@ -7,9 +7,59 @@ interface WateringLogTableProps {
 }
 
 export const WateringLogTable: React.FC<WateringLogTableProps> = ({ wateringLogs }) => {
+  const exportToCSV = () => {
+    if (wateringLogs.length === 0) return;
+
+    // Headers
+    const headers = [
+      'No',
+      'Tarikh & Masa',
+      'Pasu Tanaman',
+      'Punca Tindakan (Mod)',
+      'Tempoh Siraman (Saat)',
+      'Kelembapan Sebelum (%)',
+      'Anggaran Penggunaan Air (mL)',
+      'Status'
+    ];
+
+    // Rows
+    const rows = wateringLogs.map((log, index) => {
+      const date = new Date(log.watered_at);
+      const formattedDate = `"${date.toLocaleDateString('ms-MY')} ${date.toLocaleTimeString('ms-MY')}"`;
+      const pot = `"${log.pot_name || `Pasu #${log.pot_id}`}"`;
+      const mode = log.trigger_type === 'AUTO' ? '"Auto (Sensor)"' : '"Manual (Web)"';
+      const duration = log.duration_seconds || 5;
+      const moisture = log.moisture_before !== undefined ? log.moisture_before : '-';
+      const waterUsedMl = duration * 20; // 20 ml/s standard submersible pump rate
+      const status = '"Selesai"';
+
+      return [
+        index + 1,
+        formattedDate,
+        pot,
+        mode,
+        duration,
+        moisture,
+        waterUsedMl,
+        status
+      ].join(',');
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `rekod_siraman_polisas_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="glass-card rounded-3xl p-6 border border-white/80 shadow-sm">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
         <div className="flex items-center gap-2">
           <div className="p-2 rounded-xl bg-emerald-100 text-emerald-700">
             <History className="w-5 h-5" />
@@ -23,9 +73,20 @@ export const WateringLogTable: React.FC<WateringLogTableProps> = ({ wateringLogs
             </p>
           </div>
         </div>
-        <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-600">
-          {wateringLogs.length} rekod disimpan
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600">
+            {wateringLogs.length} rekod
+          </span>
+          <button
+            onClick={exportToCSV}
+            disabled={wateringLogs.length === 0}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white text-xs font-bold shadow-sm shadow-emerald-600/20 transition-all active:scale-95 cursor-pointer"
+            title="Muat turun data untuk lampiran Bab 4 tesis / laporan FYP"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Eksport CSV / Excel
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto">

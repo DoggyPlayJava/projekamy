@@ -9,6 +9,15 @@ interface PotCardProps {
   onTriggerWatering: (potId: number) => Promise<void>;
 }
 
+export const CROP_PRESETS = [
+  { name: 'Sawi Hijau', type: 'Sawi', threshold: 35, icon: '🥬' },
+  { name: 'Salad Bulat', type: 'Salad', threshold: 40, icon: '🥗' },
+  { name: 'Kangkung Air', type: 'Kangkung', threshold: 50, icon: '🌿' },
+  { name: 'Bayam Merah', type: 'Bayam', threshold: 35, icon: '🌱' },
+  { name: 'Cili Kulai', type: 'Cili', threshold: 30, icon: '🌶️' },
+  { name: 'Daun Pudina', type: 'Herba', threshold: 45, icon: '🍃' },
+];
+
 export const PotCard: React.FC<PotCardProps> = ({
   pot,
   onUpdatePot,
@@ -17,6 +26,7 @@ export const PotCard: React.FC<PotCardProps> = ({
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(pot.pot_name);
   const [isWateringPending, setIsWateringPending] = useState(false);
+  const [showCropMenu, setShowCropMenu] = useState(false);
 
   // Determine moisture level state
   const isOptimal = pot.moisture_pct >= 60;
@@ -83,6 +93,17 @@ export const PotCard: React.FC<PotCardProps> = ({
     return date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' });
   };
 
+  const handleSelectPreset = async (preset: typeof CROP_PRESETS[0]) => {
+    const newName = `Pasu ${pot.pot_id} (${preset.name})`;
+    setNameInput(newName);
+    setShowCropMenu(false);
+    await onUpdatePot(pot.pot_id, {
+      pot_name: newName,
+      plant_type: preset.type,
+      threshold_pct: preset.threshold,
+    });
+  };
+
   return (
     <div
       className={`glass-card glass-card-hover rounded-3xl p-6 border relative overflow-hidden transition-all duration-300 ${
@@ -122,7 +143,7 @@ export const PotCard: React.FC<PotCardProps> = ({
             )}
           </div>
 
-          {/* Plant Name with Inline Edit */}
+          {/* Plant Name with Inline Edit & Crop Preset Menu */}
           {isEditingName ? (
             <div className="flex items-center gap-1.5 mt-2">
               <input
@@ -141,11 +162,51 @@ export const PotCard: React.FC<PotCardProps> = ({
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 mt-1.5 group cursor-pointer" onClick={() => setIsEditingName(true)}>
-              <h3 className="text-lg font-extrabold text-slate-800 truncate" title={pot.pot_name}>
-                {pot.pot_name}
-              </h3>
-              <Edit2 className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center justify-between gap-2 mt-1.5">
+              <div
+                className="flex items-center gap-1.5 group cursor-pointer flex-1 min-w-0"
+                onClick={() => setIsEditingName(true)}
+              >
+                <h3 className="text-lg font-extrabold text-slate-800 truncate" title={pot.pot_name}>
+                  {pot.pot_name}
+                </h3>
+                <Edit2 className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+              </div>
+
+              {/* Crop Preset Selector */}
+              <div className="relative flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowCropMenu(!showCropMenu)}
+                  className="px-2 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                  title="Pilih Profil Tanaman Komersial"
+                >
+                  <span>🥬 Profil</span>
+                </button>
+
+                {showCropMenu && (
+                  <div className="absolute right-0 top-8 w-52 rounded-2xl bg-white shadow-2xl border border-emerald-100 p-2 z-30 animate-fade-in">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-2 py-1 border-b border-slate-100 mb-1">
+                      Pustaka Profil Tanaman
+                    </p>
+                    {CROP_PRESETS.map((p) => (
+                      <button
+                        key={p.name}
+                        onClick={() => handleSelectPreset(p)}
+                        className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-emerald-50 text-xs font-bold text-slate-700 flex items-center justify-between transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>{p.icon}</span>
+                          <span>{p.name}</span>
+                        </span>
+                        <span className="text-[10px] text-emerald-700 font-extrabold bg-emerald-100 px-1.5 py-0.5 rounded-md">
+                          {p.threshold}%
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
