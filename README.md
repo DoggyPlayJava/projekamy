@@ -13,6 +13,10 @@ Projek ini merupakan transformasi lengkap daripada sistem pengairan konvensional
    - **Kemaskini Langsung (Zero-Reload Realtime)**: Data disegerakkan secara langsung melalui WebSocket Supabase tanpa perlu menekan butang *refresh*.
    - **Kawalan Dua Hala (Bidirectional Control)**: Butang pantas *"Siram Sekarang (5 saat)"* dan suis *"Mod Auto/Manual"* bagi setiap pasu dari web ke ESP32.
    - **Pelaras Ambang (Threshold Slider)**: Laraskan peratus kelembapan minimum (15%–75%) terus dari web untuk menentukan bila pam automatik harus menyiram.
+   - **Sistem Notifikasi & Web Push (Diadaptasi daripada JPP-POLISAS)**:
+     - Ikon **Loceng Notifikasi (Notification Bell)** dengan lencana kiraan amaran belum dibaca (*unread count badge*).
+     - **Push Notification Pelayar (Visual Pop-up)**: Meminta kebenaran daripada pelayar web dan menghantar notifikasi terus ke desktop/telefon pintar apabila tanah kering atau semasa pam mula/selesai menyiram.
+     - Laci senarai notifikasi dengan tag warna: *Amaran Tanah Kering*, *Pam Air Menyiram*, *Siraman Selesai*, dan *Status ESP32*.
    - **Graf Garis Sejarah Analitik**: Memantau trend kelembapan tanah mengikut masa.
    - **Jadual Log Sejarah Siraman**: Menyimpan rekod lengkap tarikh, masa, punca (Auto Sensor vs Manual Web), dan tempoh siraman.
    - **Mod Simulator Demo**: Butang khas untuk pelajar mensimulasikan tanah kering atau pam aktif semasa sesi pembentangan/viva FYP.
