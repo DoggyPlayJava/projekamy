@@ -31,18 +31,18 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ pots, wateringLogs
   const estimatedLitersToday = (totalSecondsToday * 0.02).toFixed(2);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-      {/* 1. Purata Kelembapan */}
-      <div className="glass-card glass-card-hover rounded-2xl p-5 border border-white/60 relative overflow-hidden group">
-        <div className="flex items-center justify-between">
+    <div className="glass-card rounded-2xl border border-white/80 shadow-xs backdrop-blur-md bg-white/75 overflow-hidden mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-slate-100/80">
+        {/* 1. Purata Kelembapan */}
+        <div className="p-4 sm:p-5 flex items-center justify-between group">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Purata Kelembapan Tanah
-            </p>
-            <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-3xl font-extrabold text-slate-800">{avgMoisture}%</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              Purata Kelembapan
+            </span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-black text-slate-800 tracking-tight">{avgMoisture}%</span>
               <span
-                className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
                   avgMoisture >= 60
                     ? 'bg-emerald-100 text-emerald-800'
                     : avgMoisture >= 35
@@ -53,111 +53,95 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ pots, wateringLogs
                 {avgMoisture >= 60 ? 'Optimal' : avgMoisture >= 35 ? 'Sederhana' : 'Kering'}
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">Berdasarkan 4 pasu tanaman</p>
+            <span className="text-[10px] text-slate-400 font-medium mt-0.5 block">4 Pasu Tanaman</span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Gauge className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+            <Gauge className="w-5 h-5" />
           </div>
         </div>
-      </div>
 
-      {/* 2. Pam Sedang Beroperasi */}
-      <div className="glass-card glass-card-hover rounded-2xl p-5 border border-white/60 relative overflow-hidden group">
-        <div className="flex items-center justify-between">
+        {/* 2. Pam Sedang Beroperasi */}
+        <div className="p-4 sm:p-5 flex items-center justify-between group">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Pam Air Beroperasi
-            </p>
-            <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-3xl font-extrabold text-slate-800">
-                {activePumpsCount} <span className="text-lg text-slate-400 font-semibold">/ 4</span>
-              </span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              Pam Beroperasi
+            </span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-black text-slate-800 tracking-tight">{activePumpsCount}</span>
+              <span className="text-xs text-slate-400 font-semibold">/ 4</span>
               {activePumpsCount > 0 && (
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 animate-pulse">
-                  Menyiram
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 animate-pulse">
+                  Aktif
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">
-              {activePumpsCount > 0 ? 'Siraman aktif sedang berlaku' : 'Semua pam dalam keadaan sedia'}
-            </p>
+            <span className="text-[10px] text-slate-400 font-medium mt-0.5 block">
+              {activePumpsCount > 0 ? 'Siraman berlangsung' : 'Semua pam sedia'}
+            </span>
           </div>
           <div
-            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform ${
+            className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform ${
               activePumpsCount > 0
-                ? 'bg-sky-100 text-sky-600 animate-bounce'
-                : 'bg-slate-100 text-slate-500 group-hover:scale-110'
+                ? 'bg-emerald-100 text-emerald-600 animate-bounce'
+                : 'bg-slate-50 text-slate-400 group-hover:scale-105'
             }`}
           >
-            <Droplet className="w-6 h-6" />
+            <Droplet className="w-5 h-5" />
           </div>
         </div>
-      </div>
 
-      {/* 3. Jumlah Siraman Hari Ini */}
-      <div className="glass-card glass-card-hover rounded-2xl p-5 border border-white/60 relative overflow-hidden group">
-        <div className="flex items-center justify-between">
+        {/* 3. Siraman Hari Ini */}
+        <div className="p-4 sm:p-5 flex items-center justify-between group">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Siraman Hari Ini
-            </p>
-            <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-3xl font-extrabold text-slate-800">
-                {todayWateringCount}
-              </span>
-              <span className="text-xs text-slate-500 font-semibold">kali kitaran</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              Kitaran Hari Ini
+            </span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-black text-slate-800 tracking-tight">{todayWateringCount}</span>
+              <span className="text-xs text-slate-400 font-semibold">kali</span>
             </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">Termasuk auto & manual web</p>
+            <span className="text-[10px] text-slate-400 font-medium mt-0.5 block">Auto & Manual</span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Activity className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+            <Activity className="w-5 h-5" />
           </div>
         </div>
-      </div>
 
-      {/* 4. Anggaran Penggunaan Air (Eco / Volumetrik) */}
-      <div className="glass-card glass-card-hover rounded-2xl p-5 border border-white/60 relative overflow-hidden group">
-        <div className="flex items-center justify-between">
+        {/* 4. Penggunaan Air Hari Ini */}
+        <div className="p-4 sm:p-5 flex items-center justify-between group">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Penggunaan Air Hari Ini
-            </p>
-            <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-3xl font-extrabold text-slate-800">
-                {estimatedLitersToday}
-              </span>
-              <span className="text-xs text-slate-500 font-semibold">Liter</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              Penggunaan Air
+            </span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-black text-slate-800 tracking-tight">{estimatedLitersToday}</span>
+              <span className="text-xs text-slate-400 font-semibold">Liter</span>
             </div>
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-800">
-                Volumetrik ~20ml/s
-              </span>
-              <span className="text-[11px] text-slate-500 font-medium">({totalSecondsToday}s siram)</span>
-            </div>
+            <span className="text-[10px] text-slate-400 font-medium mt-0.5 block">
+              Volumetrik ~20ml/s
+            </span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <GlassWater className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-xl bg-emerald-50/70 text-emerald-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+            <GlassWater className="w-5 h-5" />
           </div>
         </div>
-      </div>
 
-      {/* 5. Status Tangki Air */}
-      <div className="glass-card glass-card-hover rounded-2xl p-5 border border-white/60 relative overflow-hidden group">
-        <div className="flex items-center justify-between">
+        {/* 5. Status Tangki Air */}
+        <div className="p-4 sm:p-5 flex items-center justify-between group col-span-2 sm:col-span-1">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Status Tangki Air PVC
-            </p>
-            <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-xl font-extrabold text-emerald-700 flex items-center gap-1.5">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              Tangki Air PVC
+            </span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xs font-extrabold text-emerald-700 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                 Mencukupi
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">Air paip sedia untuk siraman</p>
+            <span className="text-[10px] text-slate-400 font-medium mt-0.5 block">Tekanan sedia</span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Waves className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+            <Waves className="w-5 h-5" />
           </div>
         </div>
       </div>

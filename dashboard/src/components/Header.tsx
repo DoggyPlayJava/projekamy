@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sprout, Wifi, WifiOff, Clock, Activity, Sparkles, RefreshCw } from 'lucide-react';
+import { Sprout, Clock, Sparkles, RefreshCw } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import type { AppNotification } from '../lib/notifications';
 
@@ -87,55 +87,56 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right: Status Badges, Clock, Notification Bell & Actions */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Realtime Supabase Badge */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/80 border border-slate-200/80 text-xs font-medium text-slate-700 shadow-sm">
-            <span
-              className={`w-2.5 h-2.5 rounded-full ${
-                isRealtimeConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
-              }`}
-            />
-            <Activity className="w-3.5 h-3.5 text-slate-400" />
-            <span>{isRealtimeConnected ? 'Supabase Live' : 'Menyambung...'}</span>
+        {/* Right: Streamlined Status Capsule, Clock, Notifications & Actions */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Unified System Health Capsule */}
+          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-2xl bg-white/80 border border-slate-200/80 shadow-xs backdrop-blur-sm text-xs font-semibold">
+            {/* Supabase Status */}
+            <div
+              className="flex items-center gap-1.5"
+              title={isRealtimeConnected ? 'Pangkalan data cloud aktif' : 'Menyambung...'}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isRealtimeConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+                }`}
+              />
+              <span className="text-slate-600 font-medium">Cloud</span>
+            </div>
+
+            <span className="w-px h-3.5 bg-slate-200" />
+
+            {/* ESP32 Status */}
+            <div className="flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
+                <span
+                  className={`animate-ping absolute inline-flex h-full w-full rounded-full ${
+                    isEsp32Online ? 'bg-emerald-400 opacity-75' : 'bg-rose-400 opacity-75'
+                  }`}
+                />
+                <span
+                  className={`relative inline-flex rounded-full h-2 w-2 ${
+                    isEsp32Online ? 'bg-emerald-500' : 'bg-rose-500'
+                  }`}
+                />
+              </span>
+              <span
+                className={`text-[11px] font-bold ${
+                  isEsp32Online ? 'text-emerald-700' : 'text-rose-700'
+                }`}
+              >
+                {isEsp32Online ? 'ESP32 Online' : 'ESP32 Offline'}
+              </span>
+            </div>
           </div>
 
-          {/* ESP32 Hardware Status Badge */}
-          <div
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-sm transition-all ${
-              isEsp32Online
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                : 'bg-rose-50 border-rose-300 text-rose-800 shadow-xs ring-2 ring-rose-400/20'
-            }`}
-          >
-            {isEsp32Online ? (
-              <>
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <Wifi className="w-3.5 h-3.5 text-emerald-600" />
-                <span>ESP32 Online</span>
-              </>
-            ) : (
-              <>
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-                </span>
-                <WifiOff className="w-3.5 h-3.5 text-rose-600" />
-                <span className="font-extrabold text-rose-700">ESP32 OFFLINE</span>
-              </>
-            )}
-          </div>
-
-          {/* Clock Badge */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/90 border border-slate-200/70 text-xs font-semibold text-slate-700">
-            <Clock className="w-3.5 h-3.5 text-slate-500" />
+          {/* Clock Pill */}
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-slate-100/80 text-xs font-bold text-slate-600 border border-slate-200/60">
+            <Clock className="w-3.5 h-3.5 text-slate-400" />
             <span>{timeString || '--:--:--'}</span>
           </div>
 
-          {/* Notification Bell (Integrated from JPP-POLISAS) */}
+          {/* Notification Bell */}
           <NotificationBell
             notifications={notifications}
             unreadCount={unreadCount}
@@ -146,26 +147,26 @@ export const Header: React.FC<HeaderProps> = ({
             onClearAll={onClearAll}
           />
 
-          {/* Refresh button */}
+          {/* Quick Refresh Button */}
           <button
             onClick={onRefresh}
             title="Muat semula data"
-            className="p-2 rounded-xl bg-white/80 hover:bg-white text-slate-600 hover:text-emerald-700 border border-slate-200 shadow-sm transition-all active:scale-95 cursor-pointer"
+            className="p-2 rounded-xl bg-white/80 hover:bg-white text-slate-500 hover:text-emerald-700 border border-slate-200/80 shadow-xs transition-all active:scale-95 cursor-pointer"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-3.5 h-3.5" />
           </button>
 
-          {/* Test Simulator Toggle Button (Perfect for Demo) */}
+          {/* Demo Simulator Toggle */}
           <button
             onClick={onToggleSimulator}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer ${
               isSimulatorOpen
-                ? 'bg-emerald-700 text-white shadow-emerald-700/20'
-                : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700 shadow-emerald-600/20'
+                ? 'bg-slate-800 text-white'
+                : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{isSimulatorOpen ? 'Tutup Simulator' : 'Mod Simulasi Demo'}</span>
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+            <span>{isSimulatorOpen ? 'Tutup Demo' : 'Simulasi FYP'}</span>
           </button>
         </div>
       </div>
