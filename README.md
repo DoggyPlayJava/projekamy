@@ -16,9 +16,12 @@ Projek ini merupakan transformasi lengkap daripada sistem pengairan konvensional
    - **Sistem Notifikasi & Web Push (Diadaptasi daripada JPP-POLISAS)**:
      - Ikon **Loceng Notifikasi (Notification Bell)** dengan lencana kiraan amaran belum dibaca (*unread count badge*).
      - **Push Notification Pelayar (Visual Pop-up)**: Meminta kebenaran daripada pelayar web dan menghantar notifikasi terus ke desktop/telefon pintar apabila tanah kering atau semasa pam mula/selesai menyiram.
-     - Laci senarai notifikasi dengan tag warna: *Amaran Tanah Kering*, *Pam Air Menyiram*, *Siraman Selesai*, dan *Status ESP32*.
+   - **Penjadualan Masa Pintar (Smart Irrigation Scheduler)**:
+     - Tetapkan jadual siraman berkala automatik (contoh: Sesi Pagi 08:00 AM dan Sesi Petang 05:30 PM).
+     - Dilengkapi ciri **Smart Skip (*Langkau Jika Tanah Basah*)** yang bijak melangkau siraman jika tanah pasu sudah lembap melebihi had ambang bagi mengelakkan pembaziran air dan kerosakan akar tanaman.
+     - Pilihan memilih pasu sasaran, tempoh masa siraman (saat), dan butang *"Uji Sekarang"* untuk pengesahan segera.
    - **Graf Garis Sejarah Analitik**: Memantau trend kelembapan tanah mengikut masa.
-   - **Jadual Log Sejarah Siraman**: Menyimpan rekod lengkap tarikh, masa, punca (Auto Sensor vs Manual Web), dan tempoh siraman.
+   - **Jadual Log Sejarah Siraman**: Menyimpan rekod lengkap tarikh, masa, punca (Auto Sensor vs Manual Web vs Jadual Waktu), dan tempoh siraman.
    - **Mod Simulator Demo**: Butang khas untuk pelajar mensimulasikan tanah kering atau pam aktif semasa sesi pembentangan/viva FYP.
 
 2. **Pendawaian Breadboard Selamat (Tanpa Pin Extender)**:
