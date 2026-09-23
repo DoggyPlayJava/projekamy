@@ -55,10 +55,12 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
 
   return (
-    <header className="glass-card rounded-3xl p-5 mb-8 border border-white/60 shadow-lg relative overflow-hidden">
-      {/* Decorative emerald gradient glow in background */}
-      <div className="absolute -top-24 -right-24 w-80 h-80 bg-emerald-400/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-green-400/15 rounded-full blur-3xl pointer-events-none" />
+    <header className="glass-card rounded-3xl p-5 mb-8 border border-white/60 shadow-lg relative z-30">
+      {/* Decorative emerald gradient glow in background with clipped wrapper */}
+      <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none -z-10">
+        <div className="absolute -top-24 -right-24 w-80 h-80 bg-emerald-400/15 rounded-full blur-3xl" />
+        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-green-400/15 rounded-full blur-3xl" />
+      </div>
 
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 relative z-10">
         {/* Left: Branding & Title */}
