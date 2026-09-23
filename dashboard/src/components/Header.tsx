@@ -105,18 +105,26 @@ export const Header: React.FC<HeaderProps> = ({
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-sm transition-all ${
               isEsp32Online
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                : 'bg-amber-50 border-amber-200 text-amber-800'
+                : 'bg-rose-50 border-rose-300 text-rose-800 shadow-xs ring-2 ring-rose-400/20'
             }`}
           >
             {isEsp32Online ? (
               <>
-                <Wifi className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <Wifi className="w-3.5 h-3.5 text-emerald-600" />
                 <span>ESP32 Online</span>
               </>
             ) : (
               <>
-                <WifiOff className="w-3.5 h-3.5 text-amber-600" />
-                <span>ESP32 Standby</span>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                </span>
+                <WifiOff className="w-3.5 h-3.5 text-rose-600" />
+                <span className="font-extrabold text-rose-700">ESP32 OFFLINE</span>
               </>
             )}
           </div>

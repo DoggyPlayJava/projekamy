@@ -8,6 +8,7 @@ interface SimulatorModalProps {
   pots: PotStatus[];
   onSimulatePotUpdate: (potId: number, moisturePct: number, pumpState: boolean) => Promise<void>;
   onSimulatePingEsp32: () => Promise<void>;
+  onSimulateDisconnectEsp32?: () => void;
 }
 
 export const SimulatorModal: React.FC<SimulatorModalProps> = ({
@@ -16,6 +17,7 @@ export const SimulatorModal: React.FC<SimulatorModalProps> = ({
   pots,
   onSimulatePotUpdate,
   onSimulatePingEsp32,
+  onSimulateDisconnectEsp32,
 }) => {
   const [selectedPotId, setSelectedPotId] = useState<number>(1);
   const [customMoisture, setCustomMoisture] = useState<number>(25);
@@ -208,19 +210,35 @@ export const SimulatorModal: React.FC<SimulatorModalProps> = ({
           </button>
         </div>
 
-        {/* Heartbeat Ping */}
-        <div className="mt-4 flex items-center justify-between pt-3 border-t border-slate-100">
+        {/* Heartbeat Ping & Offline Simulation */}
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-3 border-t border-slate-100">
           <span className="text-xs text-slate-500 font-medium">
-            Simulasikan isyarat detak jantung (*Heartbeat*) ESP32:
+            Ujian Isyarat Detak Jantung (*Watchdog*):
           </span>
-          <button
-            disabled={isProcessing}
-            onClick={handleHeartbeat}
-            className="px-3.5 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 hover:bg-emerald-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isProcessing ? 'animate-spin' : ''}`} />
-            Ping Online
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              disabled={isProcessing}
+              onClick={handleHeartbeat}
+              className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 hover:bg-emerald-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Kemaskini timestamp telemetri (ESP32 Online)"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isProcessing ? 'animate-spin' : ''}`} />
+              Ping Online
+            </button>
+            {onSimulateDisconnectEsp32 && (
+              <button
+                disabled={isProcessing}
+                onClick={() => {
+                  onSimulateDisconnectEsp32();
+                  showFeedback('ESP32 disetkan ke Luar Talian (Offline > 60s)!');
+                }}
+                className="px-3 py-1.5 rounded-xl bg-rose-100 text-rose-800 hover:bg-rose-200 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                title="Uji amaran Offline Watchdog untuk pembentangan Viva"
+              >
+                Set Offline
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

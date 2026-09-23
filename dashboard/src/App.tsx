@@ -8,6 +8,9 @@ import { ScheduleManager } from './components/ScheduleManager';
 import { MoistureChart } from './components/MoistureChart';
 import { WateringLogTable } from './components/WateringLogTable';
 import { SimulatorModal } from './components/SimulatorModal';
+import { WeatherWidget } from './components/WeatherWidget';
+import { CostSavingWidget } from './components/CostSavingWidget';
+import { OfflineBanner } from './components/OfflineBanner';
 import { useSmartNotifications } from './hooks/useSmartNotifications';
 
 export const App: React.FC = () => {
@@ -165,13 +168,13 @@ export const App: React.FC = () => {
         }
       });
 
-    // Check liveness interval every 10 seconds
+    // Check liveness interval every 5 seconds (active watchdog)
     const interval = setInterval(() => {
       setPots((currentPots) => {
         evaluateEsp32Liveness(currentPots);
         return currentPots;
       });
-    }, 10000);
+    }, 5000);
 
     return () => {
       supabase.removeChannel(channel);
@@ -381,11 +384,20 @@ export const App: React.FC = () => {
     const nowIso = new Date().toISOString();
     setLastUpdatedTime(nowIso);
     setIsEsp32Online(true);
+    setPots((prev) => prev.map((p) => ({ ...p, updated_at: nowIso })));
 
     await supabase
       .from('pot_status')
       .update({ updated_at: nowIso })
       .gte('pot_id', 1);
+  };
+
+  // Heartbeat disconnect simulation (for demoing offline watchdog)
+  const handleSimulateDisconnectEsp32 = () => {
+    const oldTimeIso = new Date(Date.now() - 90000).toISOString(); // 90 seconds ago
+    setLastUpdatedTime(oldTimeIso);
+    setIsEsp32Online(false);
+    setPots((prev) => prev.map((p) => ({ ...p, updated_at: oldTimeIso })));
   };
 
   return (
@@ -408,6 +420,13 @@ export const App: React.FC = () => {
           onClearAll={clearAll}
         />
 
+        {/* Offline Watchdog Banner (Active Fail-Safe Alert) */}
+        <OfflineBanner
+          isEsp32Online={isEsp32Online}
+          lastUpdatedTime={lastUpdatedTime}
+          onRefresh={fetchData}
+        />
+
         {/* Loading Spinner */}
         {isLoading ? (
           <div className="glass-card rounded-3xl p-16 text-center my-12">
@@ -419,6 +438,12 @@ export const App: React.FC = () => {
           <>
             {/* KPI Stats Overview Banner */}
             <StatsOverview pots={pots} wateringLogs={wateringLogs} />
+
+            {/* Smart IoT Intelligence & Commercial Value (Weather-Aware & Cost-Saving ROI) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <WeatherWidget />
+              <CostSavingWidget />
+            </div>
 
             {/* 4 Interactive Plant Pot Cards Grid */}
             <div className="mb-8">
@@ -483,6 +508,7 @@ export const App: React.FC = () => {
           pots={pots}
           onSimulatePotUpdate={handleSimulatePotUpdate}
           onSimulatePingEsp32={handleSimulatePingEsp32}
+          onSimulateDisconnectEsp32={handleSimulateDisconnectEsp32}
         />
       </div>
     </div>
