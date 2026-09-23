@@ -7,6 +7,7 @@ import { PotCard } from './components/PotCard';
 import { MoistureChart } from './components/MoistureChart';
 import { WateringLogTable } from './components/WateringLogTable';
 import { SimulatorModal } from './components/SimulatorModal';
+import { useSmartNotifications } from './hooks/useSmartNotifications';
 
 export const App: React.FC = () => {
   const [pots, setPots] = useState<PotStatus[]>([]);
@@ -17,6 +18,17 @@ export const App: React.FC = () => {
   const [lastUpdatedTime, setLastUpdatedTime] = useState<string | null>(null);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Smart notification hook (adapted from JPP-POLISAS)
+  const {
+    notifications,
+    unreadCount,
+    permission,
+    requestPermission,
+    markRead,
+    markAllRead,
+    clearAll,
+  } = useSmartNotifications(pots, isEsp32Online);
 
   // Check if ESP32 sent telemetry in the last 60 seconds
   const evaluateEsp32Liveness = useCallback((potsList: PotStatus[]) => {
@@ -286,6 +298,13 @@ export const App: React.FC = () => {
           onRefresh={fetchData}
           onToggleSimulator={() => setIsSimulatorOpen((v) => !v)}
           isSimulatorOpen={isSimulatorOpen}
+          notifications={notifications}
+          unreadCount={unreadCount}
+          permission={permission}
+          onRequestPermission={requestPermission}
+          onMarkRead={markRead}
+          onMarkAllRead={markAllRead}
+          onClearAll={clearAll}
         />
 
         {/* Loading Spinner */}

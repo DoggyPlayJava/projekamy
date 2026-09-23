@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sprout, Wifi, WifiOff, Clock, Activity, Sparkles, RefreshCw } from 'lucide-react';
+import { NotificationBell } from './NotificationBell';
+import type { AppNotification } from '../lib/notifications';
 
 interface HeaderProps {
   isRealtimeConnected: boolean;
@@ -8,6 +10,14 @@ interface HeaderProps {
   onRefresh: () => void;
   onToggleSimulator: () => void;
   isSimulatorOpen: boolean;
+  // Notification Props
+  notifications: AppNotification[];
+  unreadCount: number;
+  permission: NotificationPermission;
+  onRequestPermission: () => Promise<void>;
+  onMarkRead: (id: string) => void;
+  onMarkAllRead: () => void;
+  onClearAll: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -17,6 +27,13 @@ export const Header: React.FC<HeaderProps> = ({
   onRefresh,
   onToggleSimulator,
   isSimulatorOpen,
+  notifications,
+  unreadCount,
+  permission,
+  onRequestPermission,
+  onMarkRead,
+  onMarkAllRead,
+  onClearAll,
 }) => {
   const [timeString, setTimeString] = useState<string>('');
 
@@ -68,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right: Status Badges, Clock & Actions */}
+        {/* Right: Status Badges, Clock, Notification Bell & Actions */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Realtime Supabase Badge */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/80 border border-slate-200/80 text-xs font-medium text-slate-700 shadow-sm">
@@ -107,6 +124,17 @@ export const Header: React.FC<HeaderProps> = ({
             <Clock className="w-3.5 h-3.5 text-slate-500" />
             <span>{timeString || '--:--:--'}</span>
           </div>
+
+          {/* Notification Bell (Integrated from JPP-POLISAS) */}
+          <NotificationBell
+            notifications={notifications}
+            unreadCount={unreadCount}
+            permission={permission}
+            onRequestPermission={onRequestPermission}
+            onMarkRead={onMarkRead}
+            onMarkAllRead={onMarkAllRead}
+            onClearAll={onClearAll}
+          />
 
           {/* Refresh button */}
           <button
