@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CalendarClock,
   Plus,
@@ -92,9 +93,11 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
   };
 
   return (
-    <div className="glass-card rounded-3xl p-6 border border-white/80 shadow-sm mb-8 relative overflow-hidden">
-      {/* Decorative background glow */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-teal-400/10 rounded-full blur-2xl pointer-events-none" />
+    <div className="glass-card rounded-3xl p-6 border border-white/80 shadow-sm mb-8 relative">
+      {/* Decorative background glow with clipped inner wrapper */}
+      <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none -z-10">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-teal-400/10 rounded-full blur-2xl" />
+      </div>
 
       {/* Header & Add Button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 relative z-10">
@@ -225,9 +228,10 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         )}
       </div>
 
-      {/* Add Schedule Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+      {/* Add Schedule Modal - Mounted via createPortal to document.body to prevent clipping */}
+      {isModalOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
           <div className="glass-card bg-white/95 rounded-3xl p-6 max-w-md w-full border border-emerald-200 shadow-2xl relative">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
@@ -345,8 +349,9 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
               </div>
             </form>
           </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
