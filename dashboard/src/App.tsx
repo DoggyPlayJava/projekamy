@@ -11,6 +11,7 @@ import { SimulatorModal } from './components/SimulatorModal';
 import { WeatherWidget } from './components/WeatherWidget';
 import { CostSavingWidget } from './components/CostSavingWidget';
 import { OfflineBanner } from './components/OfflineBanner';
+import { NavigationTabs, type TabId } from './components/NavigationTabs';
 import { useSmartNotifications } from './hooks/useSmartNotifications';
 
 export const App: React.FC = () => {
@@ -23,6 +24,19 @@ export const App: React.FC = () => {
   const [lastUpdatedTime, setLastUpdatedTime] = useState<string | null>(null);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Active navigation tab with persistence
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    const saved = localStorage.getItem('smart_irrigation_tab') as TabId;
+    return saved && ['garden', 'weather-roi', 'schedules', 'analytics'].includes(saved)
+      ? saved
+      : 'garden';
+  });
+
+  const handleTabChange = (tab: TabId) => {
+    setActiveTab(tab);
+    localStorage.setItem('smart_irrigation_tab', tab);
+  };
 
   // Smart notification hook (adapted from JPP-POLISAS)
   const {
@@ -427,6 +441,14 @@ export const App: React.FC = () => {
           onRefresh={fetchData}
         />
 
+        {/* Floating Glass Navigation Tabs */}
+        <NavigationTabs
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          activeSchedulesCount={schedules.filter((s) => s.is_enabled).length}
+          wateringLogsCount={wateringLogs.length}
+        />
+
         {/* Loading Spinner */}
         {isLoading ? (
           <div className="glass-card rounded-3xl p-16 text-center my-12">
@@ -435,60 +457,106 @@ export const App: React.FC = () => {
             <p className="text-xs text-slate-400 mt-1">Menghubungkan ke Supabase Cloud Database</p>
           </div>
         ) : (
-          <>
-            {/* KPI Stats Overview Banner */}
-            <StatsOverview pots={pots} wateringLogs={wateringLogs} />
+          <main className="min-h-[500px]">
+            {/* TAB 1: 🌿 Pasu & Pemantauan (Live Garden) */}
+            {activeTab === 'garden' && (
+              <div className="animate-fade-in space-y-8">
+                {/* KPI Stats Overview Banner */}
+                <StatsOverview pots={pots} wateringLogs={wateringLogs} />
 
-            {/* Smart IoT Intelligence & Commercial Value (Weather-Aware & Cost-Saving ROI) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <WeatherWidget />
-              <CostSavingWidget />
-            </div>
-
-            {/* 4 Interactive Plant Pot Cards Grid */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
+                {/* 4 Interactive Plant Pot Cards Grid */}
                 <div>
-                  <h2 className="text-xl font-extrabold text-slate-800 tracking-tight">
-                    Status 4 Pasu Tanaman (Live Status)
-                  </h2>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Pantau kelembapan tanah dan laksanakan siraman manual bagi setiap pasu
-                  </p>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-xl font-extrabold text-slate-800 tracking-tight">
+                        Status 4 Pasu Tanaman (Live Garden)
+                      </h2>
+                      <p className="text-xs text-slate-500 font-medium">
+                        Pantau kelembapan tanah, pilih pratetap tanaman, dan kawal siraman manual
+                      </p>
+                    </div>
+                    <span className="text-xs font-bold text-emerald-800 bg-emerald-100/80 border border-emerald-200 px-3 py-1 rounded-full">
+                      4 Pasu Beroperasi
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {pots.map((pot) => (
+                      <PotCard
+                        key={pot.pot_id}
+                        pot={pot}
+                        onUpdatePot={handleUpdatePot}
+                        onTriggerWatering={(pId) => handleTriggerWatering(pId, 5, 'MANUAL')}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <span className="text-xs font-bold text-emerald-800 bg-emerald-100/80 border border-emerald-200 px-3 py-1 rounded-full">
-                  4 Pasu Beroperasi
-                </span>
               </div>
+            )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {pots.map((pot) => (
-                  <PotCard
-                    key={pot.pot_id}
-                    pot={pot}
-                    onUpdatePot={handleUpdatePot}
-                    onTriggerWatering={(pId) => handleTriggerWatering(pId, 5, 'MANUAL')}
-                  />
-                ))}
+            {/* TAB 2: ⛅ Kecerdasan Cuaca & Kos (Weather & ROI) */}
+            {activeTab === 'weather-roi' && (
+              <div className="animate-fade-in space-y-6">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <h2 className="text-xl font-extrabold text-slate-800 tracking-tight">
+                      Kecerdasan Cuaca & Analisis Impak Kos
+                    </h2>
+                    <p className="text-xs text-slate-500 font-medium">
+                      Integrasi ramalan cuaca automatik Kuantan dan kalkulator pulangan pelaburan (ROI) agrikultur
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold text-sky-800 bg-sky-100/80 border border-sky-200 px-3 py-1 rounded-full">
+                    Open-Meteo & PAIP Pahang
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <WeatherWidget />
+                  <CostSavingWidget />
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Smart Irrigation Scheduler Section */}
-            <ScheduleManager
-              schedules={schedules}
-              pots={pots}
-              onAddSchedule={handleAddSchedule}
-              onToggleSchedule={handleToggleSchedule}
-              onDeleteSchedule={handleDeleteSchedule}
-              onExecuteScheduleNow={handleExecuteSchedule}
-            />
+            {/* TAB 3: ⏰ Jadual Siraman Pintar (Schedules) */}
+            {activeTab === 'schedules' && (
+              <div className="animate-fade-in space-y-6">
+                <ScheduleManager
+                  schedules={schedules}
+                  pots={pots}
+                  onAddSchedule={handleAddSchedule}
+                  onToggleSchedule={handleToggleSchedule}
+                  onDeleteSchedule={handleDeleteSchedule}
+                  onExecuteScheduleNow={handleExecuteSchedule}
+                />
+              </div>
+            )}
 
-            {/* Historical Analytics Chart */}
-            <MoistureChart moistureLogs={moistureLogs} pots={pots} />
+            {/* TAB 4: 📊 Log & Analitik Data (Analytics & CSV Export) */}
+            {activeTab === 'analytics' && (
+              <div className="animate-fade-in space-y-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-extrabold text-slate-800 tracking-tight">
+                      Analisis Data & Log Sejarah Pengairan
+                    </h2>
+                    <p className="text-xs text-slate-500 font-medium">
+                      Siri masa kelembapan tanah dan rekod lengkap kitaran siraman untuk Bab 4 tesis FYP
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold text-purple-800 bg-purple-100/80 border border-purple-200 px-3 py-1 rounded-full">
+                    Format Bab 4 Laporan FYP
+                  </span>
+                </div>
 
-            {/* Recent Watering Events History Table */}
-            <WateringLogTable wateringLogs={wateringLogs} />
-          </>
+                {/* Historical Analytics Chart */}
+                <MoistureChart moistureLogs={moistureLogs} pots={pots} />
+
+                {/* Recent Watering Events History Table */}
+                <WateringLogTable wateringLogs={wateringLogs} />
+              </div>
+            )}
+          </main>
         )}
 
         {/* Footer */}
