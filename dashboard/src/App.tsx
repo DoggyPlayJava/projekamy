@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from './lib/supabase';
-import type { PotStatus, MoistureLog, WateringLog } from './types';
+import type { PotStatus, MoistureLog, WateringLog, IrrigationSchedule } from './types';
 import { Header } from './components/Header';
 import { StatsOverview } from './components/StatsOverview';
 import { PotCard } from './components/PotCard';
+import { ScheduleManager } from './components/ScheduleManager';
 import { MoistureChart } from './components/MoistureChart';
 import { WateringLogTable } from './components/WateringLogTable';
 import { SimulatorModal } from './components/SimulatorModal';
@@ -13,6 +14,7 @@ export const App: React.FC = () => {
   const [pots, setPots] = useState<PotStatus[]>([]);
   const [moistureLogs, setMoistureLogs] = useState<MoistureLog[]>([]);
   const [wateringLogs, setWateringLogs] = useState<WateringLog[]>([]);
+  const [schedules, setSchedules] = useState<IrrigationSchedule[]>([]);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState<boolean>(false);
   const [isEsp32Online, setIsEsp32Online] = useState<boolean>(false);
   const [lastUpdatedTime, setLastUpdatedTime] = useState<string | null>(null);
@@ -47,6 +49,18 @@ export const App: React.FC = () => {
       setLastUpdatedTime(new Date(mostRecentTime).toISOString());
       // Considered online if updated within 60 seconds
       setIsEsp32Online(now - mostRecentTime < 60000);
+    }
+  }, []);
+
+  // Fetch schedules
+  const fetchSchedules = useCallback(async () => {
+    const { data: schedData, error } = await supabase
+      .from('irrigation_schedules')
+      .select('*')
+      .order('time_of_day', { ascending: true });
+
+    if (!error && schedData) {
+      setSchedules(schedData as IrrigationSchedule[]);
     }
   }, []);
 
@@ -91,10 +105,13 @@ export const App: React.FC = () => {
       } else if (wLogs) {
         setWateringLogs(wLogs as WateringLog[]);
       }
+
+      // 4. Fetch schedules
+      await fetchSchedules();
     } finally {
       setIsLoading(false);
     }
-  }, [evaluateEsp32Liveness]);
+  }, [evaluateEsp32Liveness, fetchSchedules]);
 
   // Set up Supabase Realtime WebSocket Subscription
   useEffect(() => {
@@ -133,6 +150,13 @@ export const App: React.FC = () => {
           setMoistureLogs((prev) => [...prev.slice(-59), newLog]);
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'irrigation_schedules' },
+        () => {
+          fetchSchedules();
+        }
+      )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           setIsRealtimeConnected(true);
@@ -153,7 +177,7 @@ export const App: React.FC = () => {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [fetchData, evaluateEsp32Liveness]);
+  }, [fetchData, evaluateEsp32Liveness, fetchSchedules]);
 
   // Update pot attributes (name, threshold, auto_mode) in Supabase
   const handleUpdatePot = async (potId: number, updates: Partial<PotStatus>) => {
@@ -173,8 +197,12 @@ export const App: React.FC = () => {
     }
   };
 
-  // Trigger manual watering from website
-  const handleTriggerWatering = async (potId: number) => {
+  // Trigger manual or scheduled watering
+  const handleTriggerWatering = async (
+    potId: number,
+    durationSec: number = 5,
+    triggerType: 'MANUAL' | 'SCHEDULE' = 'MANUAL'
+  ) => {
     // 1. Optimistic UI update: show pump state true immediately
     setPots((prev) =>
       prev.map((p) =>
@@ -185,16 +213,12 @@ export const App: React.FC = () => {
     );
 
     // 2. Insert command into pump_commands for ESP32 to execute
-    const { error: cmdError } = await supabase.from('pump_commands').insert({
+    await supabase.from('pump_commands').insert({
       pot_id: potId,
       action: 'WATER_NOW',
-      duration_seconds: 5,
+      duration_seconds: durationSec,
       status: 'PENDING',
     });
-
-    if (cmdError) {
-      console.error('Failed to dispatch pump command:', cmdError);
-    }
 
     // 3. Update pot_status table pump_state
     await supabase
@@ -210,12 +234,12 @@ export const App: React.FC = () => {
     await supabase.from('watering_logs').insert({
       pot_id: potId,
       pot_name: pot?.pot_name || `Pasu ${potId}`,
-      trigger_type: 'MANUAL',
-      duration_seconds: 5,
+      trigger_type: triggerType,
+      duration_seconds: durationSec,
       moisture_before: pot?.moisture_pct,
     });
 
-    // 5. Auto revert pump state after 5 seconds in UI
+    // 5. Auto revert pump state after duration in UI
     setTimeout(async () => {
       setPots((prev) =>
         prev.map((p) => (p.pot_id === potId ? { ...p, pump_state: false } : p))
@@ -224,8 +248,85 @@ export const App: React.FC = () => {
         .from('pot_status')
         .update({ pump_state: false })
         .eq('pot_id', potId);
-    }, 5000);
+    }, durationSec * 1000);
   };
+
+  // Schedule Management Handlers
+  const handleAddSchedule = async (
+    newSched: Omit<IrrigationSchedule, 'id' | 'created_at'>
+  ) => {
+    const { error } = await supabase.from('irrigation_schedules').insert(newSched);
+    if (!error) fetchSchedules();
+  };
+
+  const handleToggleSchedule = async (id: number, currentEnabled: boolean) => {
+    setSchedules((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, is_enabled: !currentEnabled } : s))
+    );
+    await supabase
+      .from('irrigation_schedules')
+      .update({ is_enabled: !currentEnabled })
+      .eq('id', id);
+  };
+
+  const handleDeleteSchedule = async (id: number) => {
+    setSchedules((prev) => prev.filter((s) => s.id !== id));
+    await supabase.from('irrigation_schedules').delete().eq('id', id);
+  };
+
+  const handleExecuteSchedule = async (sched: IrrigationSchedule) => {
+    for (const potId of sched.target_pots) {
+      const pot = pots.find((p) => p.pot_id === potId);
+
+      // Smart Skip check: If soil is already wet (> threshold), skip watering
+      if (sched.skip_if_wet && pot && pot.moisture_pct > pot.threshold_pct) {
+        console.log(
+          `[Smart Skip] Pasu ${potId} masih lembap (${pot.moisture_pct}% > ${pot.threshold_pct}%). Siraman dilangkau.`
+        );
+        continue;
+      }
+
+      await handleTriggerWatering(potId, sched.duration_seconds, 'SCHEDULE');
+    }
+
+    await supabase
+      .from('irrigation_schedules')
+      .update({ last_executed_at: new Date().toISOString() })
+      .eq('id', sched.id);
+  };
+
+  // Background Automatic Schedule Evaluator
+  const potsRef = useRef(pots);
+  potsRef.current = pots;
+  const schedulesRef = useRef(schedules);
+  schedulesRef.current = schedules;
+
+  useEffect(() => {
+    const scheduleChecker = setInterval(() => {
+      const now = new Date();
+      const currentHours = String(now.getHours()).padStart(2, '0');
+      const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+      const currentTimeStr = `${currentHours}:${currentMinutes}`; // "08:00"
+
+      schedulesRef.current.forEach((sched) => {
+        if (!sched.is_enabled) return;
+        const schedTimeStr = sched.time_of_day.slice(0, 5); // "08:00"
+
+        if (currentTimeStr === schedTimeStr) {
+          const lastExec = sched.last_executed_at
+            ? new Date(sched.last_executed_at).getTime()
+            : 0;
+          // Run once per minute
+          if (now.getTime() - lastExec > 65000) {
+            console.log(`[JADUAL AUTOMATIK] Menjalankan: ${sched.label} (${schedTimeStr})`);
+            handleExecuteSchedule(sched);
+          }
+        }
+      });
+    }, 30000);
+
+    return () => clearInterval(scheduleChecker);
+  }, []);
 
   // Simulation handler for demo
   const handleSimulatePotUpdate = async (
@@ -341,11 +442,21 @@ export const App: React.FC = () => {
                     key={pot.pot_id}
                     pot={pot}
                     onUpdatePot={handleUpdatePot}
-                    onTriggerWatering={handleTriggerWatering}
+                    onTriggerWatering={(pId) => handleTriggerWatering(pId, 5, 'MANUAL')}
                   />
                 ))}
               </div>
             </div>
+
+            {/* Smart Irrigation Scheduler Section */}
+            <ScheduleManager
+              schedules={schedules}
+              pots={pots}
+              onAddSchedule={handleAddSchedule}
+              onToggleSchedule={handleToggleSchedule}
+              onDeleteSchedule={handleDeleteSchedule}
+              onExecuteScheduleNow={handleExecuteSchedule}
+            />
 
             {/* Historical Analytics Chart */}
             <MoistureChart moistureLogs={moistureLogs} pots={pots} />

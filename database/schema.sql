@@ -30,12 +30,12 @@ CREATE TABLE IF NOT EXISTS public.moisture_logs (
 CREATE INDEX IF NOT EXISTS idx_moisture_logs_pot_time ON public.moisture_logs(pot_id, recorded_at DESC);
 
 -- 3. Table: watering_logs
--- Records every automatic or manual watering event
+-- Records every automatic, manual, or scheduled watering event
 CREATE TABLE IF NOT EXISTS public.watering_logs (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     pot_id INT NOT NULL REFERENCES public.pot_status(pot_id) ON DELETE CASCADE,
     pot_name TEXT NOT NULL,
-    trigger_type TEXT NOT NULL CHECK (trigger_type IN ('AUTO', 'MANUAL')),
+    trigger_type TEXT NOT NULL CHECK (trigger_type IN ('AUTO', 'MANUAL', 'SCHEDULE')),
     duration_seconds INT NOT NULL DEFAULT 5,
     moisture_before INT,
     watered_at TIMESTAMPTZ DEFAULT NOW()
@@ -55,11 +55,26 @@ CREATE TABLE IF NOT EXISTS public.pump_commands (
 );
 CREATE INDEX IF NOT EXISTS idx_pump_commands_status ON public.pump_commands(status, created_at ASC);
 
--- 5. Row Level Security (RLS) configuration
+-- 5. Table: irrigation_schedules
+-- Smart timer schedule manager with Smart Skip (langkau jika basah)
+CREATE TABLE IF NOT EXISTS public.irrigation_schedules (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    label TEXT NOT NULL,
+    time_of_day TIME NOT NULL,
+    target_pots INT[] NOT NULL DEFAULT '{1,2,3,4}',
+    duration_seconds INT NOT NULL DEFAULT 5,
+    skip_if_wet BOOLEAN NOT NULL DEFAULT true,
+    is_enabled BOOLEAN NOT NULL DEFAULT true,
+    last_executed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 6. Row Level Security (RLS) configuration
 ALTER TABLE public.pot_status ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.moisture_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.watering_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pump_commands ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.irrigation_schedules ENABLE ROW LEVEL SECURITY;
 
 -- Allow public anon read/write for IoT integration
 CREATE POLICY "Allow public read pot_status" ON public.pot_status FOR SELECT USING (true);
@@ -76,11 +91,17 @@ CREATE POLICY "Allow public read pump_commands" ON public.pump_commands FOR SELE
 CREATE POLICY "Allow public insert pump_commands" ON public.pump_commands FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update pump_commands" ON public.pump_commands FOR UPDATE USING (true);
 
--- 6. Enable Realtime Publications
+CREATE POLICY "Allow public read irrigation_schedules" ON public.irrigation_schedules FOR SELECT USING (true);
+CREATE POLICY "Allow public insert irrigation_schedules" ON public.irrigation_schedules FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update irrigation_schedules" ON public.irrigation_schedules FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete irrigation_schedules" ON public.irrigation_schedules FOR DELETE USING (true);
+
+-- 7. Enable Realtime Publications
 ALTER PUBLICATION supabase_realtime ADD TABLE public.pot_status;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.pump_commands;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.irrigation_schedules;
 
--- 7. Seed Initial 4 Pots
+-- 8. Seed Initial 4 Pots
 INSERT INTO public.pot_status (pot_id, pot_name, plant_type, moisture_pct, raw_adc, pump_state, auto_mode, threshold_pct)
 VALUES 
     (1, 'Pasu 1 (Sawi Hijau)', 'Sawi', 55, 2100, false, true, 35),
@@ -92,12 +113,19 @@ ON CONFLICT (pot_id) DO UPDATE SET
     plant_type = EXCLUDED.plant_type,
     updated_at = NOW();
 
--- 8. Seed Initial Sample Logs for immediate dashboard visualization
+-- 9. Seed Initial Schedules
+INSERT INTO public.irrigation_schedules (label, time_of_day, target_pots, duration_seconds, skip_if_wet, is_enabled)
+VALUES
+    ('Siraman Pagi', '08:00:00', '{1,2,3,4}', 5, true, true),
+    ('Siraman Petang', '17:30:00', '{1,2,3,4}', 5, true, true)
+ON CONFLICT DO NOTHING;
+
+-- 10. Seed Initial Sample Logs for immediate dashboard visualization
 INSERT INTO public.watering_logs (pot_id, pot_name, trigger_type, duration_seconds, moisture_before, watered_at)
 VALUES
     (1, 'Pasu 1 (Sawi Hijau)', 'AUTO', 5, 25, NOW() - INTERVAL '4 hours'),
     (2, 'Pasu 2 (Salad Bulat)', 'MANUAL', 5, 28, NOW() - INTERVAL '2 hours'),
-    (3, 'Pasu 3 (Kangkung)', 'AUTO', 5, 22, NOW() - INTERVAL '30 minutes')
+    (3, 'Pasu 3 (Kangkung)', 'SCHEDULE', 5, 22, NOW() - INTERVAL '30 minutes')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.moisture_logs (pot_id, moisture_pct, recorded_at)

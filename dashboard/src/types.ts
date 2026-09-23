@@ -22,7 +22,7 @@ export interface WateringLog {
   id: number;
   pot_id: number;
   pot_name: string;
-  trigger_type: 'AUTO' | 'MANUAL';
+  trigger_type: 'AUTO' | 'MANUAL' | 'SCHEDULE';
   duration_seconds: number;
   moisture_before?: number;
   watered_at: string;
@@ -36,4 +36,16 @@ export interface PumpCommand {
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED';
   created_at: string;
   executed_at?: string;
+}
+
+export interface IrrigationSchedule {
+  id: number;
+  label: string;
+  time_of_day: string; // e.g. "08:00:00"
+  target_pots: number[]; // e.g. [1, 2, 3, 4]
+  duration_seconds: number;
+  skip_if_wet: boolean;
+  is_enabled: boolean;
+  last_executed_at?: string;
+  created_at: string;
 }
