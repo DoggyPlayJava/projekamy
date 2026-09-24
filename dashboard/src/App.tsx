@@ -64,8 +64,8 @@ export const App: React.FC = () => {
 
     if (mostRecentTime > 0) {
       setLastUpdatedTime(new Date(mostRecentTime).toISOString());
-      // Considered online if updated within 60 seconds
-      setIsEsp32Online(now - mostRecentTime < 60000);
+      // Considered online if updated within 90 seconds (resilient to minor network jitter)
+      setIsEsp32Online(now - mostRecentTime < 90000);
     }
   }, []);
 

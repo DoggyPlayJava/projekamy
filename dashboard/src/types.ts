@@ -9,6 +9,7 @@ export interface PotStatus {
   threshold_pct: number;
   last_watered_at: string;
   updated_at: string;
+  sensor_connected?: boolean;
 }
 
 export interface MoistureLog {

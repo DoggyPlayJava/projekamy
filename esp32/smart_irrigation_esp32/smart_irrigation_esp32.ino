@@ -29,8 +29,8 @@
 // ========================================================================================
 // 1. KONFIGURASI WIFI & SUPABASE (SILA TUKAR NAMA WIFI & PASSWORD ANDA DI SINI)
 // ========================================================================================
-const char* WIFI_SSID     = "Airy";   // Contoh: "Hotspot Saya"
-const char* WIFI_PASSWORD = "sedakgitu";           // Contoh: "12345678"
+const char* WIFI_SSID     = "Amy";   // Contoh: "Hotspot Saya"
+const char* WIFI_PASSWORD = "12345678";           // Contoh: "12345678"
 
 // URL & Anon Key Supabase Projek Anda
 const char* SUPABASE_URL  = "https://adqhtjzbzeyiuzvdujnf.supabase.co";
@@ -45,7 +45,7 @@ const int WATER_VALUE = 1500;  // Nilai analog bila sensor terendam dalam air (1
 
 // Tetapan Masa (Milisaat)
 const unsigned long SYNC_INTERVAL     = 5000;   // Hantar data ke Supabase setiap 5 saat
-const unsigned long POLL_INTERVAL     = 2000;   // Semak arahan web manual setiap 2 saat
+const unsigned long POLL_INTERVAL     = 3000;   // Semak arahan web & segerakkan tetapan setiap 3 saat
 const unsigned long LOG_SAVE_INTERVAL = 60000;  // Simpan ke moisture_logs setiap 1 minit
 const unsigned long DEFAULT_WATER_MS  = 5000;   // Tempoh pam berjalan: 5 saat
 const unsigned long COOLDOWN_MS       = 30000;  // Masa rehat 30 saat selepas siram sebelum nilai semula
@@ -68,6 +68,7 @@ struct PotData {
   int moisturePct;
   int thresholdPct;
   bool autoMode;
+  bool sensorConnected; // Status pengesanan wayar sensor terputus
   bool pumpActive;
   unsigned long pumpStartTime;
   unsigned long pumpDuration;
@@ -107,6 +108,7 @@ void setup() {
     pots[i].moisturePct     = 50;
     pots[i].thresholdPct    = 35; // Nilai ambang lalai (35%)
     pots[i].autoMode        = true;
+    pots[i].sensorConnected = true;
     pots[i].pumpActive      = false;
     pots[i].pumpStartTime   = 0;
     pots[i].pumpDuration    = DEFAULT_WATER_MS;
@@ -139,10 +141,11 @@ void loop() {
   // 3. Logik penyiraman automatik (jika kelembapan <= threshold & cukup masa rehat)
   handleAutoIrrigation(currentMillis);
 
-  // 4. Semak arahan manual dari Web Dashboard (setiap 2 saat)
+  // 4. Semak arahan manual & segerakkan tetapan daripada Web Dashboard (setiap 3 saat)
   if (currentMillis - lastPollTime >= POLL_INTERVAL) {
     lastPollTime = currentMillis;
     pollPendingCommands();
+    fetchRemoteSettings(); // Menyegerakkan auto_mode & threshold_pct berterusan!
   }
 
   // 5. Hantar status terkini ke Supabase (setiap 5 saat)
@@ -174,10 +177,19 @@ void readAllSensors() {
     int avgAdc = sum / SAMPLES;
     pots[i].rawAdc = avgAdc;
 
-    // Tukar ADC kepada peratus (Semakin rendah ADC, semakin lembap tanah)
-    int pct = map(avgAdc, AIR_VALUE, WATER_VALUE, 0, 100);
-    pct = constrain(pct, 0, 100);
-    pots[i].moisturePct = pct;
+    // Pengesanan Pintar Ketersambungan Sensor (Physical Range Boundary Check)
+    // Sensor kapasitif v2.0 beroperasi dalam julat ~1300 (air) hingga ~3500 (udara).
+    // Jika kabel tercabut, longgar, atau pin terapung, ADC jatuh < 350 atau lonjak > 4050.
+    if (avgAdc < 350 || avgAdc > 4050) {
+      pots[i].sensorConnected = false;
+      pots[i].moisturePct = 0; // Tandakan 0 tetapi sensorConnected = false
+    } else {
+      pots[i].sensorConnected = true;
+      // Tukar ADC kepada peratus (Semakin rendah ADC, semakin lembap tanah)
+      int pct = map(avgAdc, AIR_VALUE, WATER_VALUE, 0, 100);
+      pct = constrain(pct, 0, 100);
+      pots[i].moisturePct = pct;
+    }
   }
 }
 
@@ -229,8 +241,12 @@ void handleActivePumps(unsigned long currentMillis) {
 
 void handleAutoIrrigation(unsigned long currentMillis) {
   for (int i = 0; i < NUM_POTS; i++) {
-    // Jika mod auto aktif, pam tidak aktif, dan kelembapan bawah paras ambang
-    if (pots[i].autoMode && !pots[i].pumpActive) {
+    // KUNCI KESELAMATAN (FAIL-SAFE LOCKOUT):
+    // Siraman automatik HANYA dibenarkan jika:
+    // 1. autoMode == true (Mod Auto aktif)
+    // 2. sensorConnected == true (Wayar sensor sah bersambung, bukan tercabut)
+    // 3. pumpActive == false (Pam belum berjalan)
+    if (pots[i].autoMode && pots[i].sensorConnected && !pots[i].pumpActive) {
       if (pots[i].moisturePct <= pots[i].thresholdPct) {
         // Semak tempoh bertenang (cooldown) untuk elak limpahan air
         if (pots[i].lastWateredTime == 0 || (currentMillis - pots[i].lastWateredTime >= COOLDOWN_MS)) {
@@ -269,10 +285,10 @@ void syncSinglePotStatus(int potIdx) {
   http.addHeader("Prefer", "return=minimal");
 
   StaticJsonDocument<256> doc;
-  doc["moisture_pct"] = pots[potIdx].moisturePct;
-  doc["raw_adc"]      = pots[potIdx].rawAdc;
-  doc["pump_state"]   = pots[potIdx].pumpActive;
-  // doc["updated_at"] dijana automatik atau boleh dihantar
+  doc["moisture_pct"]     = pots[potIdx].moisturePct;
+  doc["raw_adc"]          = pots[potIdx].rawAdc;
+  doc["pump_state"]       = pots[potIdx].pumpActive;
+  doc["sensor_connected"] = pots[potIdx].sensorConnected;
 
   String requestBody;
   serializeJson(doc, requestBody);
@@ -308,11 +324,28 @@ void fetchRemoteSettings() {
     for (JsonObject obj : array) {
       int pId = obj["pot_id"];
       if (pId >= 1 && pId <= NUM_POTS) {
-        pots[pId - 1].thresholdPct = obj["threshold_pct"] | 35;
-        pots[pId - 1].autoMode     = obj["auto_mode"] | true;
+        int oldThreshold = pots[pId - 1].thresholdPct;
+        bool oldAutoMode = pots[pId - 1].autoMode;
+
+        int newThreshold = obj["threshold_pct"] | 35;
+        bool newAutoMode = obj["auto_mode"] | true;
+
+        // Cetak ke Serial hanya bila ada perubahan
+        if (oldThreshold != newThreshold || oldAutoMode != newAutoMode) {
+          Serial.printf("[TETAPAN DIKEMASKINI] Pasu %d: Ambang = %d%% (Lama: %d%%) | Mod = %s\n", 
+                        pId, newThreshold, oldThreshold, newAutoMode ? "AUTO" : "MANUAL");
+        }
+
+        pots[pId - 1].thresholdPct = newThreshold;
+        pots[pId - 1].autoMode     = newAutoMode;
+
+        // Jika ditukar ke Mod Manual semasa pam tengah auto-siram, batalkan serta-merta!
+        if (oldAutoMode && !newAutoMode && pots[pId - 1].pumpActive && pots[pId - 1].triggerType == "AUTO") {
+          Serial.printf("[MOD MANUAL] Pasu %d ditukar ke Manual. Mematikan siraman auto serta-merta!\n", pId);
+          stopPump(pId - 1);
+        }
       }
     }
-    Serial.println("[SUPABASE] Tetapan threshold & mod berjaya dimuat turun.");
   }
   http.end();
 }

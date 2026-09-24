@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Droplet, Edit2, Check, Sliders, Power, Sparkles, AlertCircle, ChevronDown } from 'lucide-react';
+import { Droplet, Edit2, Check, Sliders, Power, Sparkles, AlertCircle, AlertTriangle, ShieldAlert, ChevronDown } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { PotStatus } from '../types';
 
@@ -28,13 +28,18 @@ export const PotCard: React.FC<PotCardProps> = ({
   const [isWateringPending, setIsWateringPending] = useState(false);
   const [isPresetOpen, setIsPresetOpen] = useState(false);
 
+  // Sensor hardware connection check
+  const isSensorFault = pot.sensor_connected === false;
+
   // Moisture state assessment
   const isOptimal = pot.moisture_pct >= 60;
   const isModerate = pot.moisture_pct >= 35 && pot.moisture_pct < 60;
   const isDry = pot.moisture_pct < 35;
 
   // Gauge color palette - Nordic Agro Discipline
-  const strokeColor = isOptimal
+  const strokeColor = isSensorFault
+    ? '#cbd5e1' // slate-300 when sensor is disconnected
+    : isOptimal
     ? '#059669' // emerald-600
     : isModerate
     ? '#d97706' // amber-600
@@ -43,7 +48,9 @@ export const PotCard: React.FC<PotCardProps> = ({
   // SVG circular gauge math
   const radius = 50;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (pot.moisture_pct / 100) * circumference;
+  const strokeDashoffset = isSensorFault 
+    ? circumference * 0.75 
+    : circumference - (pot.moisture_pct / 100) * circumference;
 
   // Handle saving renamed plant
   const handleSaveName = async () => {
@@ -123,16 +130,27 @@ export const PotCard: React.FC<PotCardProps> = ({
       )}
 
       <div>
-        {/* Top Meta Bar: Pot ID, Alert Pill & Sleek Preset Dropdown */}
+        {/* Top Meta Bar: Pot ID, Hardware Pin, Alert Pill & Sleek Preset Dropdown */}
         <div className="flex items-center justify-between gap-2 mb-3.5">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] font-extrabold tracking-wider uppercase px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600">
               Pasu #{pot.pot_id}
             </span>
+
+            {/* Hardware Relay Tag */}
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200/50">
+              {pot.pot_id === 1 ? 'Relay K1' : pot.pot_id === 2 ? 'Relay K2' : `Port #${pot.pot_id}`}
+            </span>
+
             {pot.pump_state ? (
               <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 animate-pulse flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                 MENYIRAM
+              </span>
+            ) : isSensorFault ? (
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1 animate-pulse">
+                <AlertTriangle className="w-3 h-3 text-rose-600" />
+                SENSOR TERPUTUS
               </span>
             ) : isDry ? (
               <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-rose-100 text-rose-700 flex items-center gap-1">
@@ -243,25 +261,37 @@ export const PotCard: React.FC<PotCardProps> = ({
               />
             </svg>
 
-            {/* Center Content: Percentage */}
+            {/* Center Content: Percentage or Fault Indicator */}
             <div className="absolute flex flex-col items-center justify-center text-center">
-              <Droplet
-                className={`w-4 h-4 mb-0.5 transition-colors ${
-                  pot.pump_state
-                    ? 'text-emerald-500 animate-bounce'
-                    : isOptimal
-                    ? 'text-emerald-600'
-                    : isModerate
-                    ? 'text-amber-500'
-                    : 'text-rose-500'
-                }`}
-              />
-              <span className="text-2xl font-black text-slate-800 tracking-tight">
-                {pot.moisture_pct}%
-              </span>
-              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                Kelembapan
-              </span>
+              {isSensorFault ? (
+                <>
+                  <AlertTriangle className="w-5 h-5 mb-0.5 text-rose-500 animate-pulse" />
+                  <span className="text-2xl font-black text-rose-600 tracking-tight">--</span>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-rose-600">
+                    Tidak Dikesan
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Droplet
+                    className={`w-4 h-4 mb-0.5 transition-colors ${
+                      pot.pump_state
+                        ? 'text-emerald-500 animate-bounce'
+                        : isOptimal
+                        ? 'text-emerald-600'
+                        : isModerate
+                        ? 'text-amber-500'
+                        : 'text-rose-500'
+                    }`}
+                  />
+                  <span className="text-2xl font-black text-slate-800 tracking-tight">
+                    {pot.moisture_pct}%
+                  </span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                    Kelembapan
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -287,6 +317,14 @@ export const PotCard: React.FC<PotCardProps> = ({
             className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
           />
         </div>
+
+        {/* Fail-Safe Safety Lockout Badge when Sensor Disconnected */}
+        {isSensorFault && (
+          <div className="mt-2 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200/80 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 shadow-2xs animate-fade-in">
+            <ShieldAlert className="w-3.5 h-3.5 text-rose-600 flex-shrink-0" />
+            <span>Auto-Siram Dikunci (Lindungi tanaman daripada limpahan air)</span>
+          </div>
+        )}
       </div>
 
       {/* Action Controls & Footer */}
