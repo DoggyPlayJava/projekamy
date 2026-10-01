@@ -438,7 +438,7 @@ void syncStatusToCloud() {
   http.addHeader("Authorization", String("Bearer ") + SUPABASE_KEY);
   http.addHeader("Prefer", "return=minimal");
 
-  StaticJsonDocument<384> doc;
+  JsonDocument doc;
   doc["temperature_c"]    = station.temperatureC;
   doc["air_humidity_pct"] = station.airHumidityPct;
   doc["heat_alert"]       = (station.temperatureC >= HEAT_THRESHOLD_C);
@@ -477,7 +477,7 @@ void pollPendingCommands() {
   int httpCode = http.GET();
   if (httpCode == 200) {
     String payload = http.getString();
-    DynamicJsonDocument doc(512);
+    JsonDocument doc;
     deserializeJson(doc, payload);
     JsonArray array = doc.as<JsonArray>();
 
@@ -513,7 +513,7 @@ void pollPendingCommands() {
   int code = http.GET();
   if (code == 200) {
     String p = http.getString();
-    DynamicJsonDocument sDoc(256);
+    JsonDocument sDoc;
     deserializeJson(sDoc, p);
     JsonArray arr = sDoc.as<JsonArray>();
     if (arr.size() > 0) {
@@ -535,7 +535,7 @@ void updateCommandStatus(long cmdId, const String& status) {
   http.addHeader("Authorization", String("Bearer ") + SUPABASE_KEY);
   http.addHeader("Prefer", "return=minimal");
 
-  StaticJsonDocument<128> doc;
+  JsonDocument doc;
   doc["status"]      = status;
   doc["executed_at"] = "now()";
 
@@ -559,7 +559,7 @@ void saveHistoryLog() {
   http.addHeader("Authorization", String("Bearer ") + SUPABASE_KEY);
   http.addHeader("Prefer", "return=minimal");
 
-  StaticJsonDocument<256> doc;
+  JsonDocument doc;
   doc["temperature_c"]    = station.temperatureC;
   doc["air_humidity_pct"] = station.airHumidityPct;
   doc["moisture_pct"]     = station.moisturePct;
