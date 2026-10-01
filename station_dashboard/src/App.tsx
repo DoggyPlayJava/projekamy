@@ -24,12 +24,28 @@ const DEFAULT_STATUS: WeatherStationStatus = {
 };
 
 export const App: React.FC = () => {
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [status, setStatus] = useState<WeatherStationStatus>(DEFAULT_STATUS);
   const [logs, setLogs] = useState<WeatherStationLog[]>([]);
   const [isCloudConnected, setIsCloudConnected] = useState(false);
   const [isStationOnline, setIsStationOnline] = useState(false);
   const [lastUpdatedTime, setLastUpdatedTime] = useState<string>('Memuatkan...');
   const [isLoading, setIsLoading] = useState(true);
+
+  // Sync theme with HTML root and body class
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+      document.body.classList.add('dark');
+      document.body.classList.remove('light');
+    } else {
+      document.documentElement.classList.add('light');
+      document.documentElement.classList.remove('dark');
+      document.body.classList.add('light');
+      document.body.classList.remove('dark');
+    }
+  }, [theme]);
 
   // Watchdog: evaluate ESP32 online state (90 seconds threshold)
   const evaluateLiveness = useCallback((updatedAtStr?: string) => {
@@ -159,6 +175,8 @@ export const App: React.FC = () => {
         lastUpdated={lastUpdatedTime}
         buzzerEnabled={status.buzzer_enabled}
         buzzerActive={status.buzzer_active}
+        theme={theme}
+        onToggleTheme={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
         onToggleMute={handleToggleMute}
         onTestBuzzer={handleTestBuzzer}
         onRefresh={fetchData}
@@ -166,25 +184,25 @@ export const App: React.FC = () => {
 
       {/* Offline Alert Banner */}
       {!isStationOnline && !isLoading && (
-        <div className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-center justify-between shadow-xl animate-fade-in">
+        <div className="mb-6 p-4 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 text-rose-800 dark:text-rose-300 flex items-center justify-between shadow-lg animate-fade-in">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="w-5 h-5 text-rose-400" />
+            <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-500/20 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
             </div>
             <div>
-              <h4 className="text-sm font-extrabold text-white">ESP32 Luar Talian (Offline)</h4>
-              <p className="text-xs text-rose-300/80">
+              <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">ESP32 Luar Talian (Offline)</h4>
+              <p className="text-xs text-slate-600 dark:text-rose-300/80">
                 Tiada data diterima daripada mikropengawal ESP32 dalam tempoh 90 saat. Sila pastikan bekalan kuasa 5V dan hotspot WiFi aktif.
               </p>
             </div>
           </div>
-          <span className="text-[10px] font-mono font-bold uppercase px-2 py-1 rounded bg-rose-500/20 text-rose-300">
+          <span className="text-[10px] font-mono font-bold uppercase px-2.5 py-1 rounded-lg bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-500/30">
             Terputus
           </span>
         </div>
       )}
 
-      {/* Main Metric Cards (Hujan, Cahaya, Tanah, Buzzer) */}
+      {/* Main Metric Cards (DHT11 Suhu, Kelembapan, Cahaya LDR, Indeks Haba & Buzzer) */}
       <WeatherCards status={status} />
 
       {/* 3-in-1 Analytics Chart */}
@@ -194,19 +212,19 @@ export const App: React.FC = () => {
       <RecentEventsTable logs={logs} />
 
       {/* Footer Branding & Switcher */}
-      <footer className="mt-12 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 font-medium">
+      <footer className="mt-12 pt-6 border-t border-slate-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 font-medium">
         <div className="flex items-center gap-2">
-          <Cpu className="w-4 h-4 text-emerald-400" />
-          <span>Politeknik Sultan Haji Ahmad Shah (POLISAS) • Jabatan Kejuruteraan Mekanikal</span>
+          <Cpu className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="text-slate-600 dark:text-slate-400">Politeknik Sultan Haji Ahmad Shah (POLISAS) • Jabatan Kejuruteraan Mekanikal</span>
         </div>
 
         <div className="flex items-center gap-4">
-          <span className="text-[11px] text-slate-400">Projek Stesen Cuaca & Tanaman IoT</span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">Projek Stesen Cuaca & Tanaman IoT</span>
           <a
             href="http://localhost:5174"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition-colors font-bold"
+            className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors font-bold"
           >
             <span>Buka Dashboard 4-Pasu</span>
             <ExternalLink className="w-3 h-3" />

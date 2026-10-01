@@ -1,15 +1,42 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   body {
-    background: radial-gradient(circle at 15% 15%, #064e3b 0%, #0f172a 45%, #020617 100%);
-    color: #f8fafc;
     min-height: 100vh;
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    transition: background 0.4s ease, color 0.4s ease;
+  }
+
+  body.light {
+    background: radial-gradient(circle at 10% 10%, #e0f2fe 0%, #f1f5f9 40%, #f8fafc 100%) !important;
+    color: #0f172a !important;
+  }
+
+  body.dark {
+    background: radial-gradient(circle at 15% 15%, #064e3b 0%, #0f172a 45%, #020617 100%) !important;
+    color: #f8fafc !important;
   }
 }
 
-.glass-panel {
+/* Light Glass Panel */
+body.light .glass-panel {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08), 0 1px 3px 0 rgba(15, 23, 42, 0.04);
+}
+
+body.light .glass-panel-hover:hover {
+  transform: translateY(-3px);
+  border-color: rgba(14, 165, 233, 0.4);
+  box-shadow: 0 20px 40px -12px rgba(14, 165, 233, 0.15), 0 0 0 1px rgba(14, 165, 233, 0.2);
+}
+
+/* Dark Glass Panel */
+body.dark .glass-panel {
   background: rgba(15, 23, 42, 0.72);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -17,14 +44,14 @@
   box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
-.glass-panel-hover {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.glass-panel-hover:hover {
+body.dark .glass-panel-hover:hover {
   transform: translateY(-3px);
   border-color: rgba(16, 185, 129, 0.3);
   box-shadow: 0 25px 50px -12px rgba(16, 185, 129, 0.15), 0 0 0 1px rgba(16, 185, 129, 0.2);
+}
+
+.glass-panel-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes radarWave {
@@ -35,14 +62,4 @@
 
 .animate-radar {
   animation: radarWave 2s infinite ease-out;
-}
-
-@keyframes raindropFall {
-  0% { transform: translateY(-5px); opacity: 0; }
-  50% { opacity: 1; }
-  100% { transform: translateY(12px); opacity: 0; }
-}
-
-.animate-raindrop {
-  animation: raindropFall 1.2s infinite linear;
 }
