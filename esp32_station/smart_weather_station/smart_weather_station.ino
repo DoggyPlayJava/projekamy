@@ -41,6 +41,11 @@ const char* SUPABASE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdX
 #define PIN_LDR       34  // AO (Analog Output) Modul LDR
 #define PIN_BUZZER    18  // Pin Penggera Audio
 
+// Konfigurasi Buzzer Aktif (ACTIVE LOW)
+// PENTING: Modul Active LOW berbunyi apabila pin diberi isyarat LOW (0V), dan senyap pada HIGH (3.3V/5V)
+const int BUZZER_ON  = LOW;   // Active LOW: LOW = Bunyi
+const int BUZZER_OFF = HIGH;  // Active LOW: HIGH = Senyap
+
 // Konfigurasi Sensor DHT11
 #define DHTTYPE DHT11
 DHT dht(PIN_DHT, DHTTYPE);
@@ -139,7 +144,7 @@ void setup() {
 
   // Konfigurasi Pin Perkakasan
   pinMode(PIN_BUZZER, OUTPUT);
-  digitalWrite(PIN_BUZZER, LOW); // Pastikan buzzer senyap sewaktu but
+  digitalWrite(PIN_BUZZER, BUZZER_OFF); // Pastikan buzzer senyap sewaktu but (Active LOW)
 
   pinMode(PIN_MOISTURE, INPUT);
   pinMode(PIN_LDR, INPUT);
@@ -262,18 +267,18 @@ void readAllSensors() {
 }
 
 // ========================================================================================
-// 9. LOGIK PENGGERA AUDIO (BUZZER)
+// 9. LOGIK PENGGERA AUDIO (BUZZER - ACTIVE LOW)
 // ========================================================================================
 void updateBuzzerLogic(unsigned long currentMillis) {
   // A. Ujian Manual dari Web (Priority Tertinggi)
   if (manualBuzzerTest) {
     if (currentMillis - buzzerStartTime < buzzerDuration) {
-      digitalWrite(PIN_BUZZER, HIGH);
+      digitalWrite(PIN_BUZZER, BUZZER_ON);
       station.buzzerActive = true;
       station.buzzerReason = "UJIAN MANUAL WEB";
       return;
     } else {
-      digitalWrite(PIN_BUZZER, LOW);
+      digitalWrite(PIN_BUZZER, BUZZER_OFF);
       manualBuzzerTest     = false;
       station.buzzerActive = false;
       station.buzzerReason = "STANDBY";
@@ -282,7 +287,7 @@ void updateBuzzerLogic(unsigned long currentMillis) {
 
   // B. Semak sama ada Buzzer di-Mute dari Web
   if (!station.buzzerEnabled) {
-    digitalWrite(PIN_BUZZER, LOW);
+    digitalWrite(PIN_BUZZER, BUZZER_OFF);
     station.buzzerActive = false;
     station.buzzerReason = "DISENYAPKAN (MUTED)";
     return;
@@ -294,10 +299,10 @@ void updateBuzzerLogic(unsigned long currentMillis) {
     // Corak bip pantas berselang
     int cycle = (currentMillis / 150) % 4;
     if (cycle == 0) {
-      digitalWrite(PIN_BUZZER, HIGH);
+      digitalWrite(PIN_BUZZER, BUZZER_ON);
       station.buzzerActive = true;
     } else {
-      digitalWrite(PIN_BUZZER, LOW);
+      digitalWrite(PIN_BUZZER, BUZZER_OFF);
       station.buzzerActive = false;
     }
     return;
@@ -308,17 +313,17 @@ void updateBuzzerLogic(unsigned long currentMillis) {
     station.buzzerReason = "TANAH KRITIKAL KERING";
     // Corak bip amaran: Bip 150ms setiap 3 saat
     if ((currentMillis % 3000) < 150) {
-      digitalWrite(PIN_BUZZER, HIGH);
+      digitalWrite(PIN_BUZZER, BUZZER_ON);
       station.buzzerActive = true;
     } else {
-      digitalWrite(PIN_BUZZER, LOW);
+      digitalWrite(PIN_BUZZER, BUZZER_OFF);
       station.buzzerActive = false;
     }
     return;
   }
 
   // E. Keadaan Biasa (Standby / Aman)
-  digitalWrite(PIN_BUZZER, LOW);
+  digitalWrite(PIN_BUZZER, BUZZER_OFF);
   station.buzzerActive = false;
   station.buzzerReason = "STANDBY";
 }
@@ -492,10 +497,10 @@ void pollPendingCommands() {
         manualBuzzerTest = true;
         buzzerStartTime  = millis();
         buzzerDuration   = 2000; // 2 saat
-        digitalWrite(PIN_BUZZER, HIGH);
+        digitalWrite(PIN_BUZZER, BUZZER_ON);
       } else if (action == "MUTE") {
         station.buzzerEnabled = false;
-        digitalWrite(PIN_BUZZER, LOW);
+        digitalWrite(PIN_BUZZER, BUZZER_OFF);
       } else if (action == "UNMUTE") {
         station.buzzerEnabled = true;
       }
