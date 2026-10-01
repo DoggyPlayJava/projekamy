@@ -13,28 +13,41 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
   const [showLight, setShowLight] = useState(true);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
-  // Fallback dummy data if logs are empty (for fresh setup)
-  const displayLogs: WeatherStationLog[] = logs.length > 0 ? logs : Array.from({ length: 12 }, (_, i) => {
-    const t = Number((27.5 + Math.sin(i / 2) * 3).toFixed(1));
-    const h = 65 + Math.round(Math.cos(i / 2) * 8);
-    return {
-      id: i + 1,
-      temperature_c: t,
-      air_humidity_pct: h,
-      heat_index_c: Number((t + 1.5).toFixed(1)),
-      light_pct: 60 + Math.round(Math.cos(i / 3) * 20),
-      is_night: false,
-      buzzer_state: false,
-      recorded_at: new Date(Date.now() - (12 - i) * 60000).toISOString(),
-    };
-  });
+  // Chronological order for chart (oldest to newest, left to right)
+  const baseLogs = logs.length > 0 ? [...logs].reverse() : [];
+  
+  // If there's only 1 real log recorded so far, clone an initial point 1 min earlier to draw a clean flat line
+  let chartData: WeatherStationLog[];
+  if (baseLogs.length === 1) {
+    const p = baseLogs[0];
+    const prevTime = new Date(new Date(p.recorded_at).getTime() - 60000).toISOString();
+    chartData = [{ ...p, id: p.id - 0.5, recorded_at: prevTime }, p];
+  } else if (baseLogs.length > 1) {
+    chartData = baseLogs;
+  } else {
+    // Fallback dummy data if logs are completely empty
+    chartData = Array.from({ length: 12 }, (_, i) => {
+      const t = Number((27.5 + Math.sin(i / 2) * 3).toFixed(1));
+      const h = 65 + Math.round(Math.cos(i / 2) * 8);
+      return {
+        id: i + 1,
+        temperature_c: t,
+        air_humidity_pct: h,
+        heat_index_c: Number((t + 1.5).toFixed(1)),
+        light_pct: 60 + Math.round(Math.cos(i / 3) * 20),
+        is_night: false,
+        buzzer_state: false,
+        recorded_at: new Date(Date.now() - (12 - i) * 60000).toISOString(),
+      };
+    });
+  }
 
   const chartHeight = 220;
   const chartWidth = 700;
   const paddingX = 40;
   const paddingY = 25;
 
-  const pointsCount = displayLogs.length;
+  const pointsCount = chartData.length;
   const stepX = (chartWidth - paddingX * 2) / Math.max(pointsCount - 1, 1);
 
   // Compute SVG Points (for temperature/heat index, 0-50°C maps to 0-100% SVG height)
@@ -47,7 +60,7 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
 
   const generatePath = (key: 'temperature_c' | 'air_humidity_pct' | 'heat_index_c' | 'light_pct') => {
     const isTemp = key === 'temperature_c' || key === 'heat_index_c';
-    return displayLogs
+    return chartData
       .map((item, idx) => {
         const val = Number(item[key] ?? (isTemp ? 28 : 50));
         const { x, y } = getCoordinates(val, idx, isTemp);
@@ -63,11 +76,12 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
     return `${linePath} L ${lastX.toFixed(1)} ${bottomY} L ${paddingX} ${bottomY} Z`;
   };
 
-  // Summary Metrics
-  const avgTemp = (displayLogs.reduce((acc, l) => acc + (Number(l.temperature_c) || 28), 0) / pointsCount).toFixed(1);
-  const avgAirHumidity = Math.round(displayLogs.reduce((acc, l) => acc + (l.air_humidity_pct || 65), 0) / pointsCount);
-  const avgHeatIndex = (displayLogs.reduce((acc, l) => acc + (Number(l.heat_index_c) || 29), 0) / pointsCount).toFixed(1);
-  const avgLight = Math.round(displayLogs.reduce((acc, l) => acc + (l.light_pct || 0), 0) / pointsCount);
+  // Summary Metrics (Latest values if available)
+  const latestItem = chartData[chartData.length - 1];
+  const currentTemp = Number(latestItem.temperature_c ?? 28).toFixed(1);
+  const currentAirHumidity = latestItem.air_humidity_pct ?? 65;
+  const currentHeatIndex = Number(latestItem.heat_index_c ?? 29).toFixed(1);
+  const currentLight = latestItem.light_pct ?? 0;
 
   return (
     <div className="glass-panel rounded-3xl p-6 border border-white/10 shadow-2xl mb-8">
@@ -98,7 +112,7 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
           >
             <span className="w-2.5 h-2.5 rounded-full bg-rose-400" />
             <Thermometer className="w-3.5 h-3.5" />
-            <span>Suhu ({avgTemp}°C)</span>
+            <span>Suhu ({currentTemp}°C)</span>
           </button>
 
           {/* Air Humidity Toggle */}
@@ -112,7 +126,7 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
           >
             <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
             <Wind className="w-3.5 h-3.5" />
-            <span>Kelembapan ({avgAirHumidity}%)</span>
+            <span>Kelembapan ({currentAirHumidity}%)</span>
           </button>
 
           {/* Heat Index Toggle */}
@@ -126,7 +140,7 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
           >
             <span className="w-2.5 h-2.5 rounded-full bg-orange-400" />
             <Flame className="w-3.5 h-3.5" />
-            <span>Indeks Haba ({avgHeatIndex}°C)</span>
+            <span>Indeks Haba ({currentHeatIndex}°C)</span>
           </button>
 
           {/* Light Toggle */}
@@ -140,7 +154,7 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
           >
             <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
             <Sun className="w-3.5 h-3.5" />
-            <span>Cahaya ({avgLight}%)</span>
+            <span>Cahaya ({currentLight}%)</span>
           </button>
         </div>
       </div>
@@ -266,7 +280,7 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
           )}
 
           {/* Data Points & Hover Targets */}
-          {displayLogs.map((item, idx) => {
+          {chartData.map((item, idx) => {
             const ptTemp = getCoordinates(Number(item.temperature_c ?? 28), idx, true);
             const ptAir = getCoordinates(item.air_humidity_pct ?? 65, idx);
             const ptHeat = getCoordinates(Number(item.heat_index_c ?? 29), idx, true);
@@ -349,18 +363,18 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
         </svg>
 
         {/* Interactive Hover Tooltip */}
-        {hoverIndex !== null && displayLogs[hoverIndex] && (
+        {hoverIndex !== null && chartData[hoverIndex] && (
           <div
             className="absolute top-2 pointer-events-none p-2.5 rounded-xl bg-slate-800/95 backdrop-blur-md border border-white/10 shadow-2xl text-xs z-30 transition-all"
             style={{
-              left: `${Math.min(Math.max((hoverIndex / (pointsCount - 1)) * 100, 10), 85)}%`,
+              left: `${Math.min(Math.max((hoverIndex / Math.max(pointsCount - 1, 1)) * 100, 10), 85)}%`,
               transform: 'translateX(-50%)',
             }}
           >
             <p className="text-[10px] font-mono text-slate-400 border-b border-white/10 pb-1 mb-1.5 flex items-center justify-between gap-3">
               <span>Masa:</span>
               <span className="text-white font-bold">
-                {new Date(displayLogs[hoverIndex].recorded_at).toLocaleTimeString('ms-MY', {
+                {new Date(chartData[hoverIndex].recorded_at).toLocaleTimeString('ms-MY', {
                   hour: '2-digit',
                   minute: '2-digit',
                   second: '2-digit',
@@ -371,25 +385,25 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
               {showTemp && (
                 <div className="flex items-center justify-between gap-3 text-rose-300">
                   <span>🌡️ Suhu Udara:</span>
-                  <span className="font-mono">{Number(displayLogs[hoverIndex].temperature_c ?? 28).toFixed(1)}°C</span>
+                  <span className="font-mono">{Number(chartData[hoverIndex].temperature_c ?? 28).toFixed(1)}°C</span>
                 </div>
               )}
               {showAirHumidity && (
                 <div className="flex items-center justify-between gap-3 text-cyan-300">
                   <span>💧 Kelembapan Udara:</span>
-                  <span className="font-mono">{displayLogs[hoverIndex].air_humidity_pct ?? 65}% RH</span>
+                  <span className="font-mono">{chartData[hoverIndex].air_humidity_pct ?? 65}% RH</span>
                 </div>
               )}
               {showHeatIndex && (
                 <div className="flex items-center justify-between gap-3 text-orange-300">
                   <span>🔥 Indeks Haba:</span>
-                  <span className="font-mono">{Number(displayLogs[hoverIndex].heat_index_c ?? 29).toFixed(1)}°C</span>
+                  <span className="font-mono">{Number(chartData[hoverIndex].heat_index_c ?? 29).toFixed(1)}°C</span>
                 </div>
               )}
               {showLight && (
                 <div className="flex items-center justify-between gap-3 text-amber-300">
                   <span>☀️ Cahaya Suria:</span>
-                  <span className="font-mono">{displayLogs[hoverIndex].light_pct}%</span>
+                  <span className="font-mono">{chartData[hoverIndex].light_pct}%</span>
                 </div>
               )}
             </div>
@@ -404,7 +418,7 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
           <span>Skala Suhu/Indeks Haba: 0 - 50°C dinormalkan | Frekuensi simpan log: 1 minit</span>
         </div>
         <span className="font-mono text-[11px] text-slate-500">
-          Jumlah rekod: {displayLogs.length} titik data
+          Jumlah rekod: {logs.length} titik data sebenar
         </span>
       </div>
     </div>

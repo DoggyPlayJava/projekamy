@@ -164,6 +164,12 @@ void setup() {
   // Sambungkan ke WiFi
   connectToWiFi();
 
+  // Bacaan dan simpanan log awal serta-merta
+  readAllSensors();
+  syncStatusToCloud();
+  saveHistoryLog();
+  lastLogSaveTime = millis();
+
   // Kemas kini paparan awal
   updateOledDisplay();
   Serial.println("[SISTEM] Stesen Cuaca sedia beroperasi!");
@@ -548,6 +554,11 @@ void saveHistoryLog() {
 
   String requestBody;
   serializeJson(doc, requestBody);
-  http.POST(requestBody);
+  int httpCode = http.POST(requestBody);
+  if (httpCode == 201 || httpCode == 200) {
+    Serial.println("[SUPABASE LOG] Rekod sejarah cuaca berjaya disimpan ke weather_station_logs!");
+  } else {
+    Serial.printf("[SUPABASE LOG ERROR] Status HTTP: %d\n", httpCode);
+  }
   http.end();
 }
