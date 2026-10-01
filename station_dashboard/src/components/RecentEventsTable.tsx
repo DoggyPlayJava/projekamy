@@ -1,5 +1,5 @@
 import React from 'react';
-import { History, Thermometer, Wind, Sun, Droplets, Volume2, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { History, Thermometer, Wind, Sun, Flame, Volume2, ShieldCheck, AlertTriangle } from 'lucide-react';
 import type { WeatherStationLog } from '../types';
 
 interface RecentEventsTableProps {
@@ -13,9 +13,9 @@ export const RecentEventsTable: React.FC<RecentEventsTableProps> = ({ logs }) =>
     <div className="glass-panel rounded-3xl p-6 border border-white/10 shadow-2xl">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <History className="w-5 h-5 text-teal-400" />
+          <History className="w-5 h-5 text-cyan-400" />
           <h2 className="text-lg font-extrabold text-white tracking-tight">
-            Log Sejarah Telemetri Terkini
+            Log Sejarah Telemetri Cuaca Terkini
           </h2>
         </div>
         <span className="text-[11px] font-mono px-2 py-0.5 rounded-lg bg-slate-800 text-slate-400 border border-white/5">
@@ -25,8 +25,8 @@ export const RecentEventsTable: React.FC<RecentEventsTableProps> = ({ logs }) =>
 
       {recentLogs.length === 0 ? (
         <div className="py-10 text-center text-slate-500 text-sm">
-          <p>Belum ada rekod log daripada ESP32.</p>
-          <p className="text-xs text-slate-600 mt-1">Rekod akan disimpan secara automatik setiap 1 minit.</p>
+          <p>Belum ada rekod log cuaca daripada ESP32.</p>
+          <p className="text-xs text-slate-600 mt-1">Rekod akan disimpan secara automatik setiap 1 minit ke Supabase.</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -34,10 +34,10 @@ export const RecentEventsTable: React.FC<RecentEventsTableProps> = ({ logs }) =>
             <thead>
               <tr className="border-b border-white/10 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
                 <th className="py-2.5 px-3">Masa & Tarikh</th>
-                <th className="py-2.5 px-3">Kelembapan Tanah</th>
                 <th className="py-2.5 px-3">Suhu Udara (DHT11)</th>
                 <th className="py-2.5 px-3">Kelembapan Udara</th>
-                <th className="py-2.5 px-3">Cahaya Sekitar (LDR)</th>
+                <th className="py-2.5 px-3">Indeks Haba (*Heat Index*)</th>
+                <th className="py-2.5 px-3">Cahaya Suria (LDR)</th>
                 <th className="py-2.5 px-3 text-right">Status Buzzer</th>
               </tr>
             </thead>
@@ -56,6 +56,8 @@ export const RecentEventsTable: React.FC<RecentEventsTableProps> = ({ logs }) =>
 
                 const temp = Number(log.temperature_c ?? 28);
                 const isExtremeHeat = temp >= 35;
+                const heatIndex = Number(log.heat_index_c ?? (temp + 1.5));
+                const isHeatIndexDanger = heatIndex >= 38;
 
                 return (
                   <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
@@ -64,25 +66,6 @@ export const RecentEventsTable: React.FC<RecentEventsTableProps> = ({ logs }) =>
                       <div className="flex flex-col">
                         <span className="font-mono text-white text-xs">{timeStr}</span>
                         <span className="text-[10px] text-slate-500 font-medium">{dateStr}</span>
-                      </div>
-                    </td>
-
-                    {/* Soil Moisture */}
-                    <td className="py-3 px-3">
-                      <div className="flex items-center gap-1.5">
-                        <Droplets className={`w-3.5 h-3.5 ${
-                          log.moisture_pct >= 60 ? 'text-emerald-400' : log.moisture_pct >= 30 ? 'text-amber-400' : 'text-rose-400'
-                        }`} />
-                        <span className="font-mono text-slate-200">{log.moisture_pct}%</span>
-                        <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
-                          log.moisture_pct >= 60 
-                            ? 'bg-emerald-500/10 text-emerald-300' 
-                            : log.moisture_pct >= 30 
-                            ? 'bg-amber-500/10 text-amber-300' 
-                            : 'bg-rose-500/10 text-rose-300'
-                        }`}>
-                          {log.moisture_pct >= 60 ? 'Lembap' : log.moisture_pct >= 30 ? 'Sederhana' : 'Kering'}
-                        </span>
                       </div>
                     </td>
 
@@ -110,6 +93,28 @@ export const RecentEventsTable: React.FC<RecentEventsTableProps> = ({ logs }) =>
                         <Wind className="w-3.5 h-3.5 text-cyan-400" />
                         <span className="font-mono text-slate-200">{log.air_humidity_pct ?? 65}%</span>
                         <span className="text-[9px] text-slate-500 font-medium">RH</span>
+                        {(log.air_humidity_pct ?? 65) < 40 && (
+                          <span className="text-[9px] px-1 py-0.2 rounded bg-rose-500/20 text-rose-300 font-bold">
+                            KERING
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Heat Index */}
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-1.5">
+                        <Flame className={`w-3.5 h-3.5 ${isHeatIndexDanger ? 'text-rose-400' : 'text-orange-400'}`} />
+                        <span className="font-mono text-slate-200">{heatIndex.toFixed(1)}°C</span>
+                        <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
+                          isHeatIndexDanger
+                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                            : heatIndex >= 32
+                            ? 'bg-amber-500/10 text-amber-300'
+                            : 'bg-emerald-500/10 text-emerald-300'
+                        }`}>
+                          {isHeatIndexDanger ? 'Bahaya' : heatIndex >= 32 ? 'Berjaga' : 'Normal'}
+                        </span>
                       </div>
                     </td>
 

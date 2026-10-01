@@ -74,13 +74,13 @@ export const Header: React.FC<HeaderProps> = ({
 
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-extrabold tracking-widest uppercase px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              <span className="text-[10px] font-extrabold tracking-widest uppercase px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                 POLISAS IoT
               </span>
-              <span className="text-xs text-slate-400 font-medium">Stesen Cuaca & Tanaman</span>
+              <span className="text-xs text-slate-400 font-medium">Stesen Cuaca Pintar</span>
             </div>
             <h1 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
-              Stesen Pemantauan Agro
+              Stesen Amaran Cuaca & Iklim
               <span className="text-xs font-bold text-cyan-400 font-mono">v2.0</span>
             </h1>
           </div>

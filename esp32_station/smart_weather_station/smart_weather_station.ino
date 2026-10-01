@@ -1,14 +1,13 @@
 /*
  * ========================================================================================
- *  PROJEK POLISAS: STESEN CUACA & MIKROKLIMAT TANAMAN PINTAR IoT
+ *  PROJEK POLISAS: STESEN AMARAN CUACA & MIKROKLIMAT PINTAR IoT (WEATHER STATION)
  * ========================================================================================
  *  Mikropengawal : ESP32 NodeMCU-32S
  *  Komponen      : 
  *    - Skrin Paparan OLED 0.96" I2C (SSD1306 128x64)
  *    - Sensor Suhu & Kelembapan Udara (DHT11)
- *    - Sensor Kelembapan Tanah Kapasitif (Moisture Sensor v2.0)
  *    - Sensor Kecerahan Cahaya (LDR Module - Pin AO)
- *    - Penggera Audio Aktif (Buzzer)
+ *    - Penggera Audio Aktif (Active LOW Buzzer)
  *  Pangkalan Data: Supabase PostgreSQL (Cloud Realtime)
  * ========================================================================================
  */
@@ -32,12 +31,11 @@ const char* SUPABASE_URL  = "https://adqhtjzbzeyiuzvdujnf.supabase.co";
 const char* SUPABASE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkcWh0anpiemV5aXV6dmR1am5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxNjg4MTAsImV4cCI6MjEwNTc0NDgxMH0.APe7LZp9h9waNWZYYdu-fYt1kvgmFNGCozBYE1nG3bc";
 
 // ========================================================================================
-// 2. DEFINISI PIN PERKAKASAN
+// 2. DEFINISI PIN PERKAKASAN & LOGIK
 // ========================================================================================
 #define PIN_OLED_SDA  21
 #define PIN_OLED_SCL  22
 #define PIN_DHT       33  // Data pin modul DHT11
-#define PIN_MOISTURE  32  // AOUT Sensor Kelembapan Tanah
 #define PIN_LDR       34  // AO (Analog Output) Modul LDR
 #define PIN_BUZZER    18  // Pin Penggera Audio
 
@@ -59,20 +57,17 @@ DHT dht(PIN_DHT, DHTTYPE);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // ========================================================================================
-// 3. PENENTUKURAN SENSOR (CALIBRATION) & TETAPAN MASA
+// 3. PENENTUKURAN SENSOR (CALIBRATION) & AMBANG AMARAN CUACA
 // ========================================================================================
-// Sensor Kelembapan Tanah (Kapasitif)
-const int MOISTURE_AIR   = 3500;  // 0% Lembap (Kering di udara)
-const int MOISTURE_WATER = 1400;  // 100% Lembap (Dalam air)
-
 // Sensor Cahaya LDR (Guna Pin AO)
 const int LDR_DARK_ADC   = 3500;  // Gelap / Waktu Malam
 const int LDR_BRIGHT_ADC = 800;   // Terang / Waktu Siang
 const int NIGHT_THRESHOLD= 25;    // Kecerahan < 25% = Waktu Malam
 
-// Ambang Penggera Mikroklimat
-const float HEAT_THRESHOLD_C = 35.0; // Suhu > 35°C = Amaran Haba Panas Ekstrem
-const int   DROUGHT_THRESHOLD= 20;   // Kelembapan Tanah < 20% = Amaran Kemarau
+// Ambang Penggera Cuaca Ekstrem
+const float HEAT_THRESHOLD_C       = 35.0; // Suhu > 35°C = Amaran Haba Panas Ekstrem
+const float HEAT_INDEX_WARNING_C   = 38.0; // Indeks Haba > 38°C = Bahaya Strok Haba
+const int   AIR_HUMIDITY_LOW_ALERT = 40;   // Kelembapan Udara < 40% = Amaran Cuaca Sangat Kering
 
 // Tetapan Masa (Milisaat)
 const unsigned long SYNC_INTERVAL     = 4000;   // Hantar status ke Supabase setiap 4 saat
@@ -81,16 +76,13 @@ const unsigned long LOG_SAVE_INTERVAL = 60000;  // Simpan ke weather_station_log
 const unsigned long OLED_REFRESH_MS   = 500;    // Kemaskini paparan OLED setiap 0.5 saat
 
 // ========================================================================================
-// 4. STRUKTUR DATA STESEN MIKROKLIMAT
+// 4. STRUKTUR DATA STESEN CUACA PINTAR
 // ========================================================================================
-struct StationData {
+struct WeatherStationData {
   float temperatureC;
   int   airHumidityPct;
+  float heatIndexC;
   bool  dhtConnected;
-
-  int   moisturePct;
-  int   rawMoistureAdc;
-  bool  sensorConnected;
 
   int   lightPct;
   int   rawLdrAdc;
@@ -101,9 +93,8 @@ struct StationData {
   String buzzerReason;
 };
 
-StationData station = {
-  28.5, 65, true,
-  50, 2400, true,
+WeatherStationData station = {
+  28.5, 65, 29.5, true,
   70, 1500, false,
   false, true, "STANDBY"
 };
@@ -139,14 +130,13 @@ void setup() {
   delay(1000);
 
   Serial.println("\n========================================================");
-  Serial.println("  POLISAS: STESEN MIKROKLIMAT & TANAMAN PINTAR IoT      ");
+  Serial.println("  POLISAS: STESEN AMARAN CUACA & MIKROKLIMAT PINTAR IoT ");
   Serial.println("========================================================");
 
   // Konfigurasi Pin Perkakasan
   pinMode(PIN_BUZZER, OUTPUT);
   digitalWrite(PIN_BUZZER, BUZZER_OFF); // Pastikan buzzer senyap sewaktu but (Active LOW)
 
-  pinMode(PIN_MOISTURE, INPUT);
   pinMode(PIN_LDR, INPUT);
 
   // Inisialisasi Sensor DHT11
@@ -163,9 +153,9 @@ void setup() {
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(10, 15);
-    display.println("POLISAS AGRO IoT");
+    display.println("POLISAS WEATHER");
     display.setCursor(10, 30);
-    display.println("Stesen Mikroklimat");
+    display.println("Stesen Cuaca Pintar");
     display.setCursor(10, 45);
     display.println("Memulakan WiFi...");
     display.display();
@@ -176,7 +166,7 @@ void setup() {
 
   // Kemas kini paparan awal
   updateOledDisplay();
-  Serial.println("[SISTEM] Stesen sedia beroperasi!");
+  Serial.println("[SISTEM] Stesen Cuaca sedia beroperasi!");
 }
 
 // ========================================================================================
@@ -185,7 +175,7 @@ void setup() {
 void loop() {
   unsigned long currentMillis = millis();
 
-  // 1. Bacaan berterusan semua sensor
+  // 1. Bacaan berterusan semua sensor cuaca
   readAllSensors();
 
   // 2. Logik Penggera Buzzer Pintar
@@ -203,7 +193,7 @@ void loop() {
     pollPendingCommands();
   }
 
-  // 5. Hantar telemetri terkini ke Supabase setiap 4 saat
+  // 5. Hantar telemetri cuaca ke Supabase setiap 4 saat
   if (currentMillis - lastSyncTime >= SYNC_INTERVAL) {
     lastSyncTime = currentMillis;
     syncStatusToCloud();
@@ -219,7 +209,7 @@ void loop() {
 }
 
 // ========================================================================================
-// 8. PEMBACAAN SENSOR & PENAPISAN HINGAR
+// 8. PEMBACAAN SENSOR CUACA & PENGIRAAN INDEKS HABA
 // ========================================================================================
 void readAllSensors() {
   // A. Pembacaan Sensor DHT11 (Suhu & Kelembapan Udara)
@@ -232,42 +222,27 @@ void readAllSensors() {
     station.dhtConnected   = true;
     station.temperatureC   = temp;
     station.airHumidityPct = (int)hum;
+    // Kira Heat Index sebenar (°C)
+    station.heatIndexC     = dht.computeHeatIndex(temp, hum, false);
   }
 
-  // B. Pembacaan Sensor Kelembapan Tanah (Kapasitif) dengan 8-sample smoothing
+  // B. Penilaian Sensor Cahaya LDR (Pin AO) dengan 8-sample smoothing
   const int SAMPLES = 8;
-  long sumMoisture = 0, sumLdr = 0;
-
+  long sumLdr = 0;
   for (int i = 0; i < SAMPLES; i++) {
-    sumMoisture += analogRead(PIN_MOISTURE);
-    sumLdr      += analogRead(PIN_LDR);
+    sumLdr += analogRead(PIN_LDR);
     delay(2);
   }
+  int avgLdr = sumLdr / SAMPLES;
 
-  int avgMoisture = sumMoisture / SAMPLES;
-  int avgLdr      = sumLdr / SAMPLES;
-
-  station.rawMoistureAdc = avgMoisture;
-  station.rawLdrAdc      = avgLdr;
-
-  // Semakan sempadan selamat wayar sensor kelembapan tanah
-  if (avgMoisture < 350 || avgMoisture > 4050) {
-    station.sensorConnected = false;
-    station.moisturePct     = 0;
-  } else {
-    station.sensorConnected = true;
-    int mPct = map(avgMoisture, MOISTURE_AIR, MOISTURE_WATER, 0, 100);
-    station.moisturePct = constrain(mPct, 0, 100);
-  }
-
-  // C. Penilaian Sensor Cahaya LDR (Pin AO)
+  station.rawLdrAdc = avgLdr;
   int lPct = map(avgLdr, LDR_DARK_ADC, LDR_BRIGHT_ADC, 0, 100);
-  station.lightPct = constrain(lPct, 0, 100);
-  station.isNight  = (station.lightPct < NIGHT_THRESHOLD);
+  station.lightPct  = constrain(lPct, 0, 100);
+  station.isNight   = (station.lightPct < NIGHT_THRESHOLD);
 }
 
 // ========================================================================================
-// 9. LOGIK PENGGERA AUDIO (BUZZER - ACTIVE LOW)
+// 9. LOGIK PENGGERA AUDIO CUACA (ACTIVE LOW BUZZER)
 // ========================================================================================
 void updateBuzzerLogic(unsigned long currentMillis) {
   // A. Ujian Manual dari Web (Priority Tertinggi)
@@ -293,9 +268,9 @@ void updateBuzzerLogic(unsigned long currentMillis) {
     return;
   }
 
-  // C. Penggera Haba Panas Ekstrem (Suhu Udara > 35°C)
-  if (station.dhtConnected && station.temperatureC >= HEAT_THRESHOLD_C) {
-    station.buzzerReason = "AMARAN SUHU PANAS EKSTREM!";
+  // C. Penggera Haba Panas Ekstrem (Suhu >= 35°C atau Heat Index >= 38°C)
+  if (station.dhtConnected && (station.temperatureC >= HEAT_THRESHOLD_C || station.heatIndexC >= HEAT_INDEX_WARNING_C)) {
+    station.buzzerReason = "AMARAN GELOMBANG HABA!";
     // Corak bip pantas berselang
     int cycle = (currentMillis / 150) % 4;
     if (cycle == 0) {
@@ -308,9 +283,9 @@ void updateBuzzerLogic(unsigned long currentMillis) {
     return;
   }
 
-  // D. Penggera Tanah Terlalu Kering (Kelembapan Tanah < 20%)
-  if (station.sensorConnected && station.moisturePct < DROUGHT_THRESHOLD) {
-    station.buzzerReason = "TANAH KRITIKAL KERING";
+  // D. Penggera Udara Terlalu Kering (Kelembapan Udara < 40%)
+  if (station.dhtConnected && station.airHumidityPct < AIR_HUMIDITY_LOW_ALERT) {
+    station.buzzerReason = "UDARA SANGAT KERING";
     // Corak bip amaran: Bip 150ms setiap 3 saat
     if ((currentMillis % 3000) < 150) {
       digitalWrite(PIN_BUZZER, BUZZER_ON);
@@ -338,7 +313,7 @@ void updateOledDisplay() {
   // Baris Header: Nama Sistem & Status WiFi
   display.setTextSize(1);
   display.setCursor(0, 0);
-  display.print("POLISAS AGRO");
+  display.print("POLISAS WEATHER");
   display.setCursor(80, 0);
   if (WiFi.status() == WL_CONNECTED) {
     display.print("[WiFi OK]");
@@ -349,29 +324,29 @@ void updateOledDisplay() {
   // Garisan Pemisah Header
   display.drawLine(0, 10, 127, 10, SSD1306_WHITE);
 
-  // Baris 1: Suhu & Kelembapan Udara (DHT11)
+  // Baris 1: Suhu & Indeks Haba
   display.setCursor(0, 14);
-  display.print("Suhu  : ");
+  display.print("Suhu : ");
   if (!station.dhtConnected) {
-    display.print("--.-C [ERROR]");
+    display.print("--.-C [DHT ERROR]");
   } else {
     display.print(station.temperatureC, 1);
-    display.print("C (");
-    display.print(station.airHumidityPct);
-    display.print("%)");
+    display.print("C  (HI:");
+    display.print((int)station.heatIndexC);
+    display.print("C)");
   }
 
-  // Baris 2: Kelembapan Tanah
+  // Baris 2: Kelembapan Udara
   display.setCursor(0, 26);
-  display.print("Tanah : ");
-  if (!station.sensorConnected) {
-    display.print("--% [TERPUTUS]");
+  display.print("Udara: ");
+  if (!station.dhtConnected) {
+    display.print("--% RH");
   } else {
-    display.print(station.moisturePct);
-    display.print("% [");
-    if (station.moisturePct >= 60)      display.print("LEMBAP");
-    else if (station.moisturePct >= 30) display.print("SEDERHANA");
-    else                                display.print("KERING");
+    display.print(station.airHumidityPct);
+    display.print("% RH [");
+    if (station.airHumidityPct >= 70)      display.print("LEMBAP");
+    else if (station.airHumidityPct >= 40) display.print("SELESA");
+    else                                   display.print("KERING");
     display.print("]");
   }
 
@@ -389,15 +364,15 @@ void updateOledDisplay() {
   // Garisan Pemisah Bawah
   display.drawLine(0, 50, 127, 50, SSD1306_WHITE);
 
-  // Baris 4: Status Buzzer & Sistem
+  // Baris 4: Status Buzzer & Cuaca
   display.setCursor(0, 54);
-  display.print("Penggera: ");
+  display.print("Alert : ");
   if (!station.buzzerEnabled) {
     display.print("[MUTED]");
   } else if (station.buzzerActive) {
-    display.print("BUNYI!");
+    display.print("BUNYI AMARAN!");
   } else {
-    display.print("STANDBY");
+    display.print("CUACA AMAN");
   }
 
   display.display();
@@ -446,15 +421,14 @@ void syncStatusToCloud() {
   JsonDocument doc;
   doc["temperature_c"]    = station.temperatureC;
   doc["air_humidity_pct"] = station.airHumidityPct;
-  doc["heat_alert"]       = (station.temperatureC >= HEAT_THRESHOLD_C);
-  doc["moisture_pct"]     = station.moisturePct;
-  doc["raw_moisture_adc"] = station.rawMoistureAdc;
+  doc["heat_index_c"]     = station.heatIndexC;
+  doc["heat_alert"]       = (station.temperatureC >= HEAT_THRESHOLD_C || station.heatIndexC >= HEAT_INDEX_WARNING_C);
   doc["light_pct"]        = station.lightPct;
   doc["raw_ldr_adc"]      = station.rawLdrAdc;
   doc["is_night"]         = station.isNight;
   doc["buzzer_active"]    = station.buzzerActive;
   doc["buzzer_reason"]    = station.buzzerReason;
-  doc["sensor_connected"] = station.sensorConnected;
+  doc["sensor_connected"] = station.dhtConnected;
 
   String requestBody;
   serializeJson(doc, requestBody);
@@ -567,7 +541,7 @@ void saveHistoryLog() {
   JsonDocument doc;
   doc["temperature_c"]    = station.temperatureC;
   doc["air_humidity_pct"] = station.airHumidityPct;
-  doc["moisture_pct"]     = station.moisturePct;
+  doc["heat_index_c"]     = station.heatIndexC;
   doc["light_pct"]        = station.lightPct;
   doc["is_night"]         = station.isNight;
   doc["buzzer_state"]     = station.buzzerActive;
