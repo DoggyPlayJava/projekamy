@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Cloud, Wifi, WifiOff, Bell, BellOff, Volume2, Sparkles, RefreshCw, Radio, Sun, Moon } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { NotificationBell } from './NotificationBell';
+import type { WeatherNotification } from '../lib/notifications';
 
 interface HeaderProps {
   isCloudConnected: boolean;
@@ -9,6 +11,14 @@ interface HeaderProps {
   buzzerEnabled: boolean;
   buzzerActive: boolean;
   theme: 'light' | 'dark';
+  notifications: WeatherNotification[];
+  unreadCount: number;
+  notificationPermission: NotificationPermission;
+  onRequestPermission: () => Promise<void>;
+  onTestPush: () => void;
+  onMarkRead: (id: string) => void;
+  onMarkAllRead: () => void;
+  onClearAll: () => void;
   onToggleTheme: () => void;
   onToggleMute: () => Promise<void>;
   onTestBuzzer: () => Promise<void>;
@@ -22,6 +32,14 @@ export const Header: React.FC<HeaderProps> = ({
   buzzerEnabled,
   buzzerActive,
   theme,
+  notifications,
+  unreadCount,
+  notificationPermission,
+  onRequestPermission,
+  onTestPush,
+  onMarkRead,
+  onMarkAllRead,
+  onClearAll,
   onToggleTheme,
   onToggleMute,
   onTestBuzzer,
@@ -142,6 +160,18 @@ export const Header: React.FC<HeaderProps> = ({
               </>
             )}
           </button>
+
+          {/* Weather Station Notification & Push Bell */}
+          <NotificationBell
+            notifications={notifications}
+            unreadCount={unreadCount}
+            permission={notificationPermission}
+            onRequestPermission={onRequestPermission}
+            onTestPush={onTestPush}
+            onMarkRead={onMarkRead}
+            onMarkAllRead={onMarkAllRead}
+            onClearAll={onClearAll}
+          />
 
           {/* Mute / Unmute Button */}
           <button

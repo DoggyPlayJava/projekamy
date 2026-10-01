@@ -5,6 +5,8 @@ import { Header } from './components/Header';
 import { WeatherCards } from './components/WeatherCards';
 import { StationChart } from './components/StationChart';
 import { RecentEventsTable } from './components/RecentEventsTable';
+import { ToastNotification } from './components/ToastNotification';
+import { useWeatherNotifications } from './hooks/useWeatherNotifications';
 import { AlertTriangle, ExternalLink, Cpu } from 'lucide-react';
 
 const DEFAULT_STATUS: WeatherStationStatus = {
@@ -31,6 +33,20 @@ export const App: React.FC = () => {
   const [isStationOnline, setIsStationOnline] = useState(false);
   const [lastUpdatedTime, setLastUpdatedTime] = useState<string>('Memuatkan...');
   const [isLoading, setIsLoading] = useState(true);
+
+  // Weather & Climate Push Notification System
+  const {
+    notifications,
+    unreadCount,
+    permission: notificationPermission,
+    latestToast,
+    dismissToast,
+    requestPermission: handleRequestPermission,
+    triggerTestNotification,
+    markRead: handleMarkRead,
+    markAllRead: handleMarkAllRead,
+    clearAll: handleClearAll,
+  } = useWeatherNotifications(status, isStationOnline);
 
   // Sync theme with HTML root and body class
   useEffect(() => {
@@ -168,6 +184,9 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      {/* Floating Realtime Toast Notification */}
+      <ToastNotification toast={latestToast} onDismiss={dismissToast} />
+
       {/* Navigation & Header */}
       <Header
         isCloudConnected={isCloudConnected}
@@ -176,6 +195,14 @@ export const App: React.FC = () => {
         buzzerEnabled={status.buzzer_enabled}
         buzzerActive={status.buzzer_active}
         theme={theme}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        notificationPermission={notificationPermission}
+        onRequestPermission={handleRequestPermission}
+        onTestPush={triggerTestNotification}
+        onMarkRead={handleMarkRead}
+        onMarkAllRead={handleMarkAllRead}
+        onClearAll={handleClearAll}
         onToggleTheme={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
         onToggleMute={handleToggleMute}
         onTestBuzzer={handleTestBuzzer}
