@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TrendingUp, Droplets, CloudRain, Sun, Activity } from 'lucide-react';
+import { TrendingUp, Droplets, Thermometer, Wind, Sun, Activity } from 'lucide-react';
 import type { WeatherStationLog } from '../types';
 
 interface StationChartProps {
@@ -8,19 +8,20 @@ interface StationChartProps {
 
 export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
   const [showMoisture, setShowMoisture] = useState(true);
-  const [showRain, setShowRain] = useState(true);
+  const [showTemp, setShowTemp] = useState(true);
+  const [showAirHumidity, setShowAirHumidity] = useState(true);
   const [showLight, setShowLight] = useState(true);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   // Fallback dummy data if logs are empty (for fresh setup)
-  const displayLogs = logs.length > 0 ? logs : Array.from({ length: 12 }, (_, i) => ({
+  const displayLogs: WeatherStationLog[] = logs.length > 0 ? logs : Array.from({ length: 12 }, (_, i) => ({
     id: i + 1,
-    moisture_pct: 45 + Math.round(Math.sin(i / 2) * 10),
-    rain_intensity_pct: i > 7 ? 65 : 0,
-    rain_detected: i > 7,
+    temperature_c: Number((27.5 + Math.sin(i / 2) * 4).toFixed(1)),
+    air_humidity_pct: 65 + Math.round(Math.cos(i / 2) * 10),
+    moisture_pct: 50 + Math.round(Math.sin(i / 3) * 15),
     light_pct: 60 + Math.round(Math.cos(i / 3) * 20),
     is_night: false,
-    buzzer_state: i > 7,
+    buzzer_state: false,
     recorded_at: new Date(Date.now() - (12 - i) * 60000).toISOString(),
   }));
 
@@ -32,23 +33,26 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
   const pointsCount = displayLogs.length;
   const stepX = (chartWidth - paddingX * 2) / Math.max(pointsCount - 1, 1);
 
-  // Compute SVG Points
-  const getCoordinates = (value: number, index: number) => {
+  // Compute SVG Points (normalizes 0-100% scale; for temperature, 0-50°C is mapped to 0-100%)
+  const getCoordinates = (value: number, index: number, isTemperature = false) => {
+    const normalizedVal = isTemperature ? Math.min(Math.max((value / 50) * 100, 0), 100) : Math.min(Math.max(value, 0), 100);
     const x = paddingX + index * stepX;
-    const y = chartHeight - paddingY - (value / 100) * (chartHeight - paddingY * 2);
+    const y = chartHeight - paddingY - (normalizedVal / 100) * (chartHeight - paddingY * 2);
     return { x, y };
   };
 
-  const generatePath = (key: 'moisture_pct' | 'rain_intensity_pct' | 'light_pct') => {
+  const generatePath = (key: 'moisture_pct' | 'temperature_c' | 'air_humidity_pct' | 'light_pct') => {
+    const isTemp = key === 'temperature_c';
     return displayLogs
       .map((item, idx) => {
-        const { x, y } = getCoordinates(item[key], idx);
+        const val = Number(item[key] ?? (isTemp ? 28 : 50));
+        const { x, y } = getCoordinates(val, idx, isTemp);
         return `${idx === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
       })
       .join(' ');
   };
 
-  const generateArea = (key: 'moisture_pct' | 'rain_intensity_pct' | 'light_pct') => {
+  const generateArea = (key: 'moisture_pct' | 'temperature_c' | 'air_humidity_pct' | 'light_pct') => {
     const linePath = generatePath(key);
     const lastX = paddingX + (pointsCount - 1) * stepX;
     const bottomY = chartHeight - paddingY;
@@ -56,9 +60,10 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
   };
 
   // Summary Metrics
-  const avgMoisture = Math.round(displayLogs.reduce((acc, l) => acc + l.moisture_pct, 0) / pointsCount);
-  const avgRain = Math.round(displayLogs.reduce((acc, l) => acc + l.rain_intensity_pct, 0) / pointsCount);
-  const avgLight = Math.round(displayLogs.reduce((acc, l) => acc + l.light_pct, 0) / pointsCount);
+  const avgMoisture = Math.round(displayLogs.reduce((acc, l) => acc + (l.moisture_pct || 0), 0) / pointsCount);
+  const avgTemp = (displayLogs.reduce((acc, l) => acc + (Number(l.temperature_c) || 28), 0) / pointsCount).toFixed(1);
+  const avgAirHumidity = Math.round(displayLogs.reduce((acc, l) => acc + (l.air_humidity_pct || 65), 0) / pointsCount);
+  const avgLight = Math.round(displayLogs.reduce((acc, l) => acc + (l.light_pct || 0), 0) / pointsCount);
 
   return (
     <div className="glass-panel rounded-3xl p-6 border border-white/10 shadow-2xl mb-8">
@@ -68,7 +73,7 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
           <div className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-emerald-400" />
             <h2 className="text-lg font-extrabold text-white tracking-tight">
-              Analitik Trend Cuaca & Tanah (3-dalam-1)
+              Analitik Mikroklimat & Kesuburan (Masa Nyata)
             </h2>
           </div>
           <p className="text-xs text-slate-400 font-medium mt-0.5">
@@ -78,7 +83,7 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
 
         {/* Legend Filter Toggles */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Moisture Toggle */}
+          {/* Soil Moisture Toggle */}
           <button
             onClick={() => setShowMoisture(!showMoisture)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
@@ -92,18 +97,32 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
             <span>Tanah ({avgMoisture}%)</span>
           </button>
 
-          {/* Rain Toggle */}
+          {/* Temperature Toggle */}
           <button
-            onClick={() => setShowRain(!showRain)}
+            onClick={() => setShowTemp(!showTemp)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-              showRain
+              showTemp
+                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-sm shadow-rose-500/10'
+                : 'bg-slate-800/60 text-slate-500 border-white/5 opacity-60'
+            }`}
+          >
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-400" />
+            <Thermometer className="w-3.5 h-3.5" />
+            <span>Suhu ({avgTemp}°C)</span>
+          </button>
+
+          {/* Air Humidity Toggle */}
+          <button
+            onClick={() => setShowAirHumidity(!showAirHumidity)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+              showAirHumidity
                 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm shadow-cyan-500/10'
                 : 'bg-slate-800/60 text-slate-500 border-white/5 opacity-60'
             }`}
           >
             <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
-            <CloudRain className="w-3.5 h-3.5" />
-            <span>Hujan ({avgRain}%)</span>
+            <Wind className="w-3.5 h-3.5" />
+            <span>Udara ({avgAirHumidity}%)</span>
           </button>
 
           {/* Light Toggle */}
@@ -131,19 +150,25 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
           <defs>
             {/* Emerald Gradient */}
             <linearGradient id="moistureGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
               <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
             </linearGradient>
 
+            {/* Rose Gradient */}
+            <linearGradient id="tempGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.0" />
+            </linearGradient>
+
             {/* Cyan Gradient */}
-            <linearGradient id="rainGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.35" />
+            <linearGradient id="airGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.2" />
               <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.0" />
             </linearGradient>
 
             {/* Amber Gradient */}
             <linearGradient id="lightGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.25" />
+              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.2" />
               <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
             </linearGradient>
           </defs>
@@ -180,8 +205,11 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
           {showMoisture && (
             <path d={generateArea('moisture_pct')} fill="url(#moistureGradient)" />
           )}
-          {showRain && (
-            <path d={generateArea('rain_intensity_pct')} fill="url(#rainGradient)" />
+          {showTemp && (
+            <path d={generateArea('temperature_c')} fill="url(#tempGradient)" />
+          )}
+          {showAirHumidity && (
+            <path d={generateArea('air_humidity_pct')} fill="url(#airGradient)" />
           )}
           {showLight && (
             <path d={generateArea('light_pct')} fill="url(#lightGradient)" />
@@ -199,12 +227,24 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
             />
           )}
 
-          {showRain && (
+          {showTemp && (
             <path
-              d={generatePath('rain_intensity_pct')}
+              d={generatePath('temperature_c')}
+              fill="none"
+              stroke="#f43f5e"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
+
+          {showAirHumidity && (
+            <path
+              d={generatePath('air_humidity_pct')}
               fill="none"
               stroke="#06b6d4"
-              strokeWidth="2.5"
+              strokeWidth="2"
+              strokeDasharray="3 3"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -224,7 +264,8 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
           {/* Data Points & Hover Targets */}
           {displayLogs.map((item, idx) => {
             const ptMoisture = getCoordinates(item.moisture_pct, idx);
-            const ptRain = getCoordinates(item.rain_intensity_pct, idx);
+            const ptTemp = getCoordinates(Number(item.temperature_c ?? 28), idx, true);
+            const ptAir = getCoordinates(item.air_humidity_pct ?? 65, idx);
             const ptLight = getCoordinates(item.light_pct, idx);
             const isHovered = hoverIndex === idx;
 
@@ -268,14 +309,24 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
                     strokeWidth="1.5"
                   />
                 )}
-                {showRain && (
+                {showTemp && (
                   <circle
-                    cx={ptRain.x}
-                    cy={ptRain.y}
+                    cx={ptTemp.x}
+                    cy={ptTemp.y}
                     r={isHovered ? 5 : 2.5}
-                    fill="#06b6d4"
+                    fill="#f43f5e"
                     stroke="#0f172a"
                     strokeWidth="1.5"
+                  />
+                )}
+                {showAirHumidity && (
+                  <circle
+                    cx={ptAir.x}
+                    cy={ptAir.y}
+                    r={isHovered ? 4 : 2}
+                    fill="#06b6d4"
+                    stroke="#0f172a"
+                    strokeWidth="1"
                   />
                 )}
                 {showLight && (
@@ -319,10 +370,16 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
                   <span className="font-mono">{displayLogs[hoverIndex].moisture_pct}%</span>
                 </div>
               )}
-              {showRain && (
+              {showTemp && (
+                <div className="flex items-center justify-between gap-3 text-rose-300">
+                  <span>🌡️ Suhu:</span>
+                  <span className="font-mono">{Number(displayLogs[hoverIndex].temperature_c ?? 28).toFixed(1)}°C</span>
+                </div>
+              )}
+              {showAirHumidity && (
                 <div className="flex items-center justify-between gap-3 text-cyan-300">
-                  <span>🌧️ Hujan:</span>
-                  <span className="font-mono">{displayLogs[hoverIndex].rain_intensity_pct}%</span>
+                  <span>💧 Udara:</span>
+                  <span className="font-mono">{displayLogs[hoverIndex].air_humidity_pct ?? 65}%</span>
                 </div>
               )}
               {showLight && (
@@ -340,7 +397,7 @@ export const StationChart: React.FC<StationChartProps> = ({ logs }) => {
       <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-slate-400 font-medium">
         <div className="flex items-center gap-1.5">
           <Activity className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Frekuensi kemaskini: Setiap 1 minit ke Supabase</span>
+          <span>Skala Suhu: 0 - 50°C dinormalkan | Frekuensi simpan log: 1 minit</span>
         </div>
         <span className="font-mono text-[11px] text-slate-500">
           Jumlah rekod: {displayLogs.length} titik data

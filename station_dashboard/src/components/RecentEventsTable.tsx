@@ -1,5 +1,5 @@
 import React from 'react';
-import { History, CloudRain, Sun, Droplets, Volume2, ShieldCheck } from 'lucide-react';
+import { History, Thermometer, Wind, Sun, Droplets, Volume2, ShieldCheck, AlertTriangle } from 'lucide-react';
 import type { WeatherStationLog } from '../types';
 
 interface RecentEventsTableProps {
@@ -13,7 +13,7 @@ export const RecentEventsTable: React.FC<RecentEventsTableProps> = ({ logs }) =>
     <div className="glass-panel rounded-3xl p-6 border border-white/10 shadow-2xl">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <History className="w-5 h-5 text-cyan-400" />
+          <History className="w-5 h-5 text-teal-400" />
           <h2 className="text-lg font-extrabold text-white tracking-tight">
             Log Sejarah Telemetri Terkini
           </h2>
@@ -35,8 +35,9 @@ export const RecentEventsTable: React.FC<RecentEventsTableProps> = ({ logs }) =>
               <tr className="border-b border-white/10 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
                 <th className="py-2.5 px-3">Masa & Tarikh</th>
                 <th className="py-2.5 px-3">Kelembapan Tanah</th>
-                <th className="py-2.5 px-3">Keadaan Hujan</th>
-                <th className="py-2.5 px-3">Cahaya Sekitar</th>
+                <th className="py-2.5 px-3">Suhu Udara (DHT11)</th>
+                <th className="py-2.5 px-3">Kelembapan Udara</th>
+                <th className="py-2.5 px-3">Cahaya Sekitar (LDR)</th>
                 <th className="py-2.5 px-3 text-right">Status Buzzer</th>
               </tr>
             </thead>
@@ -52,6 +53,9 @@ export const RecentEventsTable: React.FC<RecentEventsTableProps> = ({ logs }) =>
                   day: 'numeric',
                   month: 'short',
                 });
+
+                const temp = Number(log.temperature_c ?? 28);
+                const isExtremeHeat = temp >= 35;
 
                 return (
                   <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
@@ -77,25 +81,35 @@ export const RecentEventsTable: React.FC<RecentEventsTableProps> = ({ logs }) =>
                             ? 'bg-amber-500/10 text-amber-300' 
                             : 'bg-rose-500/10 text-rose-300'
                         }`}>
-                          {log.moisture_pct >= 60 ? 'Optimal' : log.moisture_pct >= 30 ? 'Sederhana' : 'Kering'}
+                          {log.moisture_pct >= 60 ? 'Lembap' : log.moisture_pct >= 30 ? 'Sederhana' : 'Kering'}
                         </span>
                       </div>
                     </td>
 
-                    {/* Rain Status */}
+                    {/* Temperature */}
                     <td className="py-3 px-3">
                       <div className="flex items-center gap-1.5">
-                        <CloudRain className={`w-3.5 h-3.5 ${log.rain_detected ? 'text-cyan-400' : 'text-slate-500'}`} />
-                        <span className="font-mono text-slate-200">{log.rain_intensity_pct}%</span>
-                        {log.rain_detected ? (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                            HUJAN
+                        <Thermometer className={`w-3.5 h-3.5 ${isExtremeHeat ? 'text-rose-400' : temp >= 30 ? 'text-amber-400' : 'text-teal-400'}`} />
+                        <span className="font-mono text-slate-200">{temp.toFixed(1)}°C</span>
+                        {isExtremeHeat ? (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-0.5">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            PANAS
                           </span>
                         ) : (
                           <span className="text-[9px] px-1.5 py-0.2 rounded font-medium bg-slate-800 text-slate-400">
-                            Kering
+                            Normal
                           </span>
                         )}
+                      </div>
+                    </td>
+
+                    {/* Air Humidity */}
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-1.5">
+                        <Wind className="w-3.5 h-3.5 text-cyan-400" />
+                        <span className="font-mono text-slate-200">{log.air_humidity_pct ?? 65}%</span>
+                        <span className="text-[9px] text-slate-500 font-medium">RH</span>
                       </div>
                     </td>
 

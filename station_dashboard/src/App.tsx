@@ -9,11 +9,11 @@ import { AlertTriangle, ExternalLink, Cpu } from 'lucide-react';
 
 const DEFAULT_STATUS: WeatherStationStatus = {
   id: 1,
+  temperature_c: 28.5,
+  air_humidity_pct: 65,
+  heat_alert: false,
   moisture_pct: 45,
   raw_moisture_adc: 2400,
-  rain_detected: false,
-  rain_intensity_pct: 0,
-  raw_rain_adc: 3800,
   light_pct: 75,
   raw_ldr_adc: 1500,
   is_night: false,
