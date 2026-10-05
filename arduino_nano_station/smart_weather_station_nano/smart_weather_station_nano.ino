@@ -196,25 +196,44 @@ void handleBuzzer() {
   digitalWrite(BUZZER_PIN, BUZZER_OFF);
 }
 
+// Penimbal Arahan Bersiri (Non-blocking)
+char rxBuffer[48];
+byte rxIndex = 0;
+
 // Terima & Proses Perintah Masuk daripada Web Serial
 void processSerialCommands() {
-  if (Serial.available() > 0) {
-    String input = Serial.readStringUntil('\n');
-    input.trim();
-    if (input.length() == 0) return;
+  while (Serial.available() > 0) {
+    char c = (char)Serial.read();
+    if (c == '\n' || c == '\r') {
+      if (rxIndex > 0) {
+        rxBuffer[rxIndex] = '\0';
 
-    // Sokong format teks ringkas atau JSON
-    if (input.indexOf("TEST_BUZZER") >= 0) {
-      testBuzzerRunning = true;
-      testBuzzerEnd = millis() + 2000;
-      Serial.println(F("{\"ack\":\"TEST_BUZZER\",\"status\":\"OK\"}"));
-    } else if (input.indexOf("MUTE") >= 0 && input.indexOf("UNMUTE") < 0) {
-      buzzerEnabled = false;
-      digitalWrite(BUZZER_PIN, BUZZER_OFF);
-      Serial.println(F("{\"ack\":\"MUTE\",\"status\":\"OK\"}"));
-    } else if (input.indexOf("UNMUTE") >= 0) {
-      buzzerEnabled = true;
-      Serial.println(F("{\"ack\":\"UNMUTE\",\"status\":\"OK\"}"));
+        // 1. Perintah Ujian Buzzer 2 Saat
+        if (strstr(rxBuffer, "TEST_BUZZER") != NULL || strstr(rxBuffer, "TEST") != NULL) {
+          testBuzzerRunning = true;
+          testBuzzerEnd = millis() + 2000;
+          digitalWrite(BUZZER_PIN, BUZZER_ON); // Bunyikan serta-merta pada pin D8!
+          buzzerActive = true;
+          buzzerReason = "UJIAN WEB";
+          Serial.println(F("{\"ack\":\"TEST_BUZZER\",\"status\":\"OK\"}"));
+        } 
+        // 2. Perintah Nyahsenyap (Unmute)
+        else if (strstr(rxBuffer, "UNMUTE") != NULL) {
+          buzzerEnabled = true;
+          Serial.println(F("{\"ack\":\"UNMUTE\",\"status\":\"OK\"}"));
+        } 
+        // 3. Perintah Senyap (Mute)
+        else if (strstr(rxBuffer, "MUTE") != NULL) {
+          buzzerEnabled = false;
+          digitalWrite(BUZZER_PIN, BUZZER_OFF);
+          Serial.println(F("{\"ack\":\"MUTE\",\"status\":\"OK\"}"));
+        }
+        rxIndex = 0;
+      }
+    } else {
+      if (rxIndex < sizeof(rxBuffer) - 1) {
+        rxBuffer[rxIndex++] = c;
+      }
     }
   }
 }
@@ -287,8 +306,9 @@ void loop() {
 
     // Baca Sensor Cahaya LDR (Analog A0: 0 - 1023)
     rawLdrAdc = analogRead(LDR_PIN);
-    // Sensor LDR modul: Voltan tinggi bila terang, rendah bila gelap
-    lightPct = map(rawLdrAdc, 0, 1023, 0, 100);
+    // Modul LDR memberikan rintangan & ADC tinggi bila gelap, dan rendah bila terang.
+    // Diterbalikkan (invert) supaya bila gelap = 0%, bila terang = 100%:
+    lightPct = 100 - map(rawLdrAdc, 0, 1023, 0, 100);
     lightPct = constrain(lightPct, 0, 100);
     isNight = (lightPct < NIGHT_LIGHT_THRESHOLD);
 

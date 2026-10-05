@@ -296,6 +296,37 @@ export const App: React.FC = () => {
         onRefresh={fetchData}
       />
 
+      {/* Web Serial Error Alert Banner */}
+      {webSerial.lastError && (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <h4 className="text-sm font-extrabold text-amber-950 dark:text-white">Ralat Sambungan USB Arduino Nano</h4>
+              <p className="text-xs text-amber-800 dark:text-amber-200/90 mt-0.5">
+                {webSerial.lastError}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-auto flex-shrink-0">
+            <button
+              onClick={webSerial.connect}
+              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white shadow-sm transition-all cursor-pointer"
+            >
+              Cuba Sambung Semula
+            </button>
+            <button
+              onClick={webSerial.clearError}
+              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 transition-all cursor-pointer"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Offline Alert Banner */}
       {!isStationOnline && !isLoading && !webSerial.isConnected && (
         <div className="mb-6 p-4 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 text-rose-800 dark:text-rose-300 flex items-center justify-between shadow-lg animate-fade-in">

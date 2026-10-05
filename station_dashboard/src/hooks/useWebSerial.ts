@@ -114,7 +114,17 @@ export function useWebSerial(onTelemetry?: (data: NanoTelemetry) => void) {
       if (err.name !== 'NotFoundError') {
         // User didn't just cancel the prompt
         console.error('[WebSerial] Gagal menyambung:', err);
-        setLastError(err.message || 'Gagal membuka port USB.');
+        let friendlyMsg = err.message || 'Gagal membuka port USB.';
+        const lower = friendlyMsg.toLowerCase();
+        if (
+          lower.includes('failed to open') ||
+          lower.includes('access denied') ||
+          err.name === 'NetworkError'
+        ) {
+          friendlyMsg =
+            'Port COM sedang disekat atau digunakan oleh perisian lain (cth: Serial Monitor di Arduino IDE). Sila TUTUP Serial Monitor Arduino IDE terlebih dahulu, kemudian klik Sambung semula.';
+        }
+        setLastError(friendlyMsg);
       }
       setIsConnected(false);
       setPortName(null);
@@ -159,11 +169,16 @@ export function useWebSerial(onTelemetry?: (data: NanoTelemetry) => void) {
     }
   }, []);
 
+  const clearError = useCallback(() => {
+    setLastError(null);
+  }, []);
+
   return {
     isSupported,
     isConnected,
     portName,
     lastError,
+    clearError,
     connect,
     disconnect,
     sendCommand,

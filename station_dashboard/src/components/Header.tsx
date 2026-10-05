@@ -74,6 +74,17 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
 
   const handleTestClick = async () => {
+    if (!isSerialConnected) {
+      alert(
+        '⚠️ ARDUINO NANO BELUM BERSAMBUNG KE PELAYAR!\n\n' +
+        '1. Sila klik butang biru [🔌 Sambung USB Nano] di atas kanan.\n' +
+        '2. Pilih port COM Arduino Nano anda (cth: CH340 / USB Serial) dan klik Connect.\n' +
+        '3. Pastikan tetingkap Serial Monitor di Arduino IDE telah DITUTUP sebelum menyambung.\n\n' +
+        'Selepas status bertukar hijau "Nano USB Live", tekan butang Uji Buzzer sekali lagi!'
+      );
+      return;
+    }
+
     setIsTestingBuzzer(true);
     confetti({
       particleCount: 25,
@@ -156,19 +167,19 @@ export const Header: React.FC<HeaderProps> = ({
           {isSerialSupported && (
             <button
               onClick={isSerialConnected ? onDisconnectSerial : onConnectSerial}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                 isSerialConnected
-                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/25 shadow-sm'
-                  : 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/25 shadow-sm active:scale-95'
+                  ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border-emerald-500/50 shadow-sm'
+                  : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white border-transparent shadow-lg shadow-cyan-500/30 ring-2 ring-cyan-400/40 animate-pulse active:scale-95'
               }`}
               title={
                 isSerialConnected
                   ? 'Arduino Nano berhubung secara langsung via kabel USB. Klik untuk putuskan.'
-                  : 'Sambungkan kabel USB Arduino Nano ke komputer/pelayar melalui Web Serial API (Chrome/Edge).'
+                  : 'Klik sekarang untuk memilih port COM Arduino Nano anda.'
               }
             >
-              <Usb className={`w-3.5 h-3.5 ${isSerialConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-cyan-600 dark:text-cyan-400'}`} />
-              <span>{isSerialConnected ? 'Nano Berhubung' : 'Sambung USB Nano'}</span>
+              <Usb className="w-3.5 h-3.5" />
+              <span>{isSerialConnected ? '🟢 Nano Berhubung' : '🔌 Sambung USB Nano'}</span>
             </button>
           )}
 
@@ -220,12 +231,10 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Test Buzzer Button */}
           <button
             onClick={handleTestClick}
-            disabled={isTestingBuzzer || !buzzerEnabled}
+            disabled={isTestingBuzzer}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-all shadow-md active:scale-95 cursor-pointer ${
               isTestingBuzzer
                 ? 'bg-rose-600 animate-pulse shadow-rose-500/20'
-                : !buzzerEnabled
-                ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed border border-slate-300 dark:border-white/5'
                 : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 shadow-cyan-500/20'
             }`}
           >
