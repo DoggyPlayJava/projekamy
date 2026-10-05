@@ -20,7 +20,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <DHT.h>
-#include <ArduinoJson.h>
 
 // --- Definisi Pin Perkakasan ---
 #define DHT_PIN       2
@@ -57,7 +56,7 @@ int rawLdrAdc = 500;
 bool isNight = false;
 bool buzzerEnabled = true;
 bool buzzerActive = false;
-String buzzerReason = "STANDBY";
+const char* buzzerReason = "STANDBY";
 
 // Pemasa Latar Belakang (Non-blocking Millis)
 unsigned long lastSensorRead = 0;
@@ -197,7 +196,7 @@ void handleBuzzer() {
 }
 
 // Penimbal Arahan Bersiri (Non-blocking)
-char rxBuffer[48];
+char rxBuffer[32];
 byte rxIndex = 0;
 
 // Terima & Proses Perintah Masuk daripada Web Serial
@@ -238,22 +237,29 @@ void processSerialCommands() {
   }
 }
 
-// Hantar Data Telemetri JSON ke Web Serial Dashboard
+// Hantar Data Telemetri JSON ke Web Serial Dashboard (Sifar Heap / 100% PROGMEM Safe)
 void sendTelemetryJSON() {
-  JsonDocument doc;
-  doc["temp"] = round(temperature * 10.0) / 10.0;
-  doc["hum"] = round(humidity);
-  doc["hi"] = round(heatIndex * 10.0) / 10.0;
-  doc["light"] = lightPct;
-  doc["raw_ldr"] = rawLdrAdc;
-  doc["night"] = isNight;
-  doc["buzzer"] = buzzerActive;
-  doc["buzzer_en"] = buzzerEnabled;
-  doc["reason"] = buzzerReason;
-  doc["uptime"] = millis() / 1000;
-
-  serializeJson(doc, Serial);
-  Serial.println();
+  Serial.print(F("{\"temp\":"));
+  Serial.print(temperature, 1);
+  Serial.print(F(",\"hum\":"));
+  Serial.print((int)humidity);
+  Serial.print(F(",\"hi\":"));
+  Serial.print(heatIndex, 1);
+  Serial.print(F(",\"light\":"));
+  Serial.print(lightPct);
+  Serial.print(F(",\"raw_ldr\":"));
+  Serial.print(rawLdrAdc);
+  Serial.print(F(",\"night\":"));
+  Serial.print(isNight ? F("true") : F("false"));
+  Serial.print(F(",\"buzzer\":"));
+  Serial.print(buzzerActive ? F("true") : F("false"));
+  Serial.print(F(",\"buzzer_en\":"));
+  Serial.print(buzzerEnabled ? F("true") : F("false"));
+  Serial.print(F(",\"reason\":\""));
+  Serial.print(buzzerReason);
+  Serial.print(F("\",\"uptime\":"));
+  Serial.print(millis() / 1000);
+  Serial.println(F("}"));
 }
 
 void setup() {
@@ -282,7 +288,24 @@ void setup() {
     delay(1200);
   }
 
+  // Bacaan awal sensor supaya paparan metrik muncul serta-merta
+  float t = dht.readTemperature();
+  float h = dht.readHumidity();
+  if (!isnan(t) && !isnan(h)) {
+    temperature = t;
+    humidity = h;
+    heatIndex = calculateHeatIndex(temperature, humidity);
+  }
+  rawLdrAdc = analogRead(LDR_PIN);
+  lightPct = 100 - map(rawLdrAdc, 0, 1023, 0, 100);
+  lightPct = constrain(lightPct, 0, 100);
+  isNight = (lightPct < NIGHT_LIGHT_THRESHOLD);
+
+  // Kemaskini paparan skrin metrik serta-merta selepas skrin alu-aluan
+  updateOLED();
+
   Serial.println(F("{\"status\":\"BOOT_OK\",\"board\":\"Arduino Nano (ATmega328P)\"}"));
+  sendTelemetryJSON();
 }
 
 void loop() {

@@ -38,11 +38,20 @@ export const App: React.FC = () => {
   // Web Serial Sync Timers (Throttle cloud updates to avoid hammering Supabase)
   const lastCloudSyncRef = useRef<number>(0);
   const lastLogSyncRef = useRef<number>(0);
+  const lastLocalLogRef = useRef<number>(0);
 
   // Real-time Telemetry Handler from Arduino Nano via USB Serial
   const handleNanoTelemetry = useCallback(async (data: NanoTelemetry) => {
     const now = Date.now();
     const nowIso = new Date().toISOString();
+
+    setIsLoading(false);
+    setIsStationOnline(true);
+    setLastUpdatedTime(new Date().toLocaleTimeString('ms-MY', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }));
 
     setStatus((prev) => ({
       ...prev,
@@ -58,12 +67,21 @@ export const App: React.FC = () => {
       updated_at: nowIso,
     }));
 
-    setIsStationOnline(true);
-    setLastUpdatedTime(new Date().toLocaleTimeString('ms-MY', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }));
+    // Tambah titik data ke graf tempatan setiap 10 saat secara langsung
+    if (now - lastLocalLogRef.current > 10000) {
+      lastLocalLogRef.current = now;
+      const newLogItem: WeatherStationLog = {
+        id: Date.now(),
+        temperature_c: data.temp !== undefined ? data.temp : 28.0,
+        air_humidity_pct: data.hum !== undefined ? data.hum : 65.0,
+        heat_index_c: data.hi !== undefined ? data.hi : 29.5,
+        light_pct: data.light !== undefined ? data.light : 50,
+        is_night: data.night !== undefined ? data.night : false,
+        buzzer_state: data.buzzer !== undefined ? data.buzzer : false,
+        recorded_at: nowIso,
+      };
+      setLogs((prev) => [newLogItem, ...prev.slice(0, 59)]);
+    }
 
     // Forward status to Supabase every 3 seconds for remote dashboard synchronization
     if (now - lastCloudSyncRef.current > 3000) {
