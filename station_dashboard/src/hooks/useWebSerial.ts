@@ -1,0 +1,171 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+
+export interface NanoTelemetry {
+  temp?: number;
+  hum?: number;
+  hi?: number;
+  light?: number;
+  raw_ldr?: number;
+  night?: boolean;
+  buzzer?: boolean;
+  buzzer_en?: boolean;
+  reason?: string;
+  uptime?: number;
+}
+
+export function useWebSerial(onTelemetry?: (data: NanoTelemetry) => void) {
+  const [isSupported, setIsSupported] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [portName, setPortName] = useState<string | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
+
+  const portRef = useRef<any>(null);
+  const readerRef = useRef<any>(null);
+  const keepReadingRef = useRef(false);
+  const onTelemetryRef = useRef(onTelemetry);
+
+  useEffect(() => {
+    onTelemetryRef.current = onTelemetry;
+  }, [onTelemetry]);
+
+  // Check Web Serial API support
+  useEffect(() => {
+    const supported = typeof navigator !== 'undefined' && 'serial' in (navigator as any);
+    setIsSupported(supported);
+
+    if (supported) {
+      const handleDisconnect = (e: any) => {
+        if (portRef.current && e.target === portRef.current) {
+          disconnect();
+        }
+      };
+      (navigator as any).serial.addEventListener('disconnect', handleDisconnect);
+      return () => {
+        (navigator as any).serial.removeEventListener('disconnect', handleDisconnect);
+      };
+    }
+  }, []);
+
+  // Connect to Arduino Nano via Web Serial
+  const connect = useCallback(async () => {
+    setLastError(null);
+    if (!('serial' in (navigator as any))) {
+      setLastError('Pelayar web anda tidak menyokong Web Serial API. Sila gunakan Google Chrome atau Microsoft Edge.');
+      return;
+    }
+
+    try {
+      // 1. Prompt user to select COM Port
+      const port = await (navigator as any).serial.requestPort();
+
+      // 2. Open port at 115200 baud
+      await port.open({ baudRate: 115200 });
+      portRef.current = port;
+      setIsConnected(true);
+      setPortName('Arduino Nano USB');
+      keepReadingRef.current = true;
+
+      // 3. Read stream line-by-line
+      const textDecoder = new TextDecoderStream();
+      port.readable.pipeTo(textDecoder.writable).catch(() => {});
+      const reader = textDecoder.readable.getReader();
+      readerRef.current = reader;
+
+      let buffer = '';
+
+      const readLoop = async () => {
+        try {
+          while (keepReadingRef.current) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            if (value) {
+              buffer += value;
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || ''; // keep uncompleted line
+
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                  try {
+                    const parsed: NanoTelemetry = JSON.parse(trimmed);
+                    if (onTelemetryRef.current && (parsed.temp !== undefined || parsed.hum !== undefined)) {
+                      onTelemetryRef.current(parsed);
+                    }
+                  } catch {
+                    // Ignore malformed partial chunks
+                  }
+                }
+              }
+            }
+          }
+        } catch (err: any) {
+          if (keepReadingRef.current) {
+            console.warn('[WebSerial] Ralat membaca strim:', err);
+            setLastError(err.message || 'Sambungan bersiri terputus.');
+          }
+        } finally {
+          setIsConnected(false);
+          setPortName(null);
+        }
+      };
+
+      readLoop();
+    } catch (err: any) {
+      if (err.name !== 'NotFoundError') {
+        // User didn't just cancel the prompt
+        console.error('[WebSerial] Gagal menyambung:', err);
+        setLastError(err.message || 'Gagal membuka port USB.');
+      }
+      setIsConnected(false);
+      setPortName(null);
+    }
+  }, []);
+
+  // Disconnect from Arduino Nano
+  const disconnect = useCallback(async () => {
+    keepReadingRef.current = false;
+    try {
+      if (readerRef.current) {
+        await readerRef.current.cancel();
+        readerRef.current = null;
+      }
+      if (portRef.current) {
+        await portRef.current.close();
+        portRef.current = null;
+      }
+    } catch (err) {
+      console.warn('[WebSerial] Ralat semasa menutup port:', err);
+    } finally {
+      setIsConnected(false);
+      setPortName(null);
+    }
+  }, []);
+
+  // Send Command to Arduino Nano (e.g., TEST_BUZZER, MUTE, UNMUTE)
+  const sendCommand = useCallback(async (cmd: string): Promise<boolean> => {
+    if (!portRef.current || !portRef.current.writable) {
+      return false;
+    }
+
+    try {
+      const encoder = new TextEncoder();
+      const writer = portRef.current.writable.getWriter();
+      await writer.write(encoder.encode(cmd.trim() + '\n'));
+      writer.releaseLock();
+      return true;
+    } catch (err) {
+      console.error('[WebSerial] Gagal menghantar arahan:', err);
+      return false;
+    }
+  }, []);
+
+  return {
+    isSupported,
+    isConnected,
+    portName,
+    lastError,
+    connect,
+    disconnect,
+    sendCommand,
+  };
+}

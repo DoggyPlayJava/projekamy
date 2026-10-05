@@ -95,7 +95,7 @@ export const WeatherCards: React.FC<WeatherCardsProps> = ({ status }) => {
               DHT11 Suhu Udara
             </span>
             <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/5">
-              GPIO 33
+              Nano D2
             </span>
           </div>
 
@@ -174,7 +174,7 @@ export const WeatherCards: React.FC<WeatherCardsProps> = ({ status }) => {
               DHT11 Kelembapan
             </span>
             <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/5">
-              GPIO 33
+              Nano D2
             </span>
           </div>
 
@@ -244,7 +244,7 @@ export const WeatherCards: React.FC<WeatherCardsProps> = ({ status }) => {
               Sensor Cahaya LDR
             </span>
             <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/5">
-              GPIO 34 (AO)
+              Nano A0
             </span>
           </div>
 
@@ -322,7 +322,7 @@ export const WeatherCards: React.FC<WeatherCardsProps> = ({ status }) => {
               Indeks Haba & Penggera
             </span>
             <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/5">
-              GPIO 18 (Active LOW)
+              Nano D8 (Active LOW)
             </span>
           </div>
 

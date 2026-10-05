@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Cloud, Wifi, WifiOff, Bell, BellOff, Volume2, Sparkles, RefreshCw, Radio, Sun, Moon } from 'lucide-react';
+import { Cloud, Wifi, WifiOff, Bell, BellOff, Volume2, Sparkles, RefreshCw, Radio, Sun, Moon, Usb } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { NotificationBell } from './NotificationBell';
 import type { WeatherNotification } from '../lib/notifications';
@@ -7,6 +7,10 @@ import type { WeatherNotification } from '../lib/notifications';
 interface HeaderProps {
   isCloudConnected: boolean;
   isStationOnline: boolean;
+  isSerialConnected: boolean;
+  isSerialSupported: boolean;
+  onConnectSerial: () => void;
+  onDisconnectSerial: () => void;
   lastUpdated: string;
   buzzerEnabled: boolean;
   buzzerActive: boolean;
@@ -28,6 +32,10 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   isCloudConnected,
   isStationOnline,
+  isSerialConnected,
+  isSerialSupported,
+  onConnectSerial,
+  onDisconnectSerial,
   lastUpdated,
   buzzerEnabled,
   buzzerActive,
@@ -121,16 +129,18 @@ export const Header: React.FC<HeaderProps> = ({
 
             <span className="text-slate-300 dark:text-slate-600">|</span>
 
-            {/* ESP32 Status */}
+            {/* Microcontroller Connection Status (USB Nano or Cloud) */}
             <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${isStationOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-              {isStationOnline ? (
+              <span className={`w-2 h-2 rounded-full ${isSerialConnected ? 'bg-emerald-500 animate-ping' : isStationOnline ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+              {isSerialConnected ? (
+                <Usb className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              ) : isStationOnline ? (
                 <Wifi className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               ) : (
                 <WifiOff className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" />
               )}
-              <span className={isStationOnline ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-400'}>
-                {isStationOnline ? 'ESP32 Online' : 'ESP32 Offline'}
+              <span className={isSerialConnected || isStationOnline ? 'text-emerald-700 dark:text-emerald-300 font-bold' : 'text-rose-600 dark:text-rose-400 font-bold'}>
+                {isSerialConnected ? 'Nano USB Live' : isStationOnline ? 'Cloud Online' : 'Terputus'}
               </span>
             </div>
 
@@ -141,6 +151,26 @@ export const Header: React.FC<HeaderProps> = ({
               {currentTime}
             </span>
           </div>
+
+          {/* Web Serial USB Connect / Disconnect Button */}
+          {isSerialSupported && (
+            <button
+              onClick={isSerialConnected ? onDisconnectSerial : onConnectSerial}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                isSerialConnected
+                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/25 shadow-sm'
+                  : 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/25 shadow-sm active:scale-95'
+              }`}
+              title={
+                isSerialConnected
+                  ? 'Arduino Nano berhubung secara langsung via kabel USB. Klik untuk putuskan.'
+                  : 'Sambungkan kabel USB Arduino Nano ke komputer/pelayar melalui Web Serial API (Chrome/Edge).'
+              }
+            >
+              <Usb className={`w-3.5 h-3.5 ${isSerialConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-cyan-600 dark:text-cyan-400'}`} />
+              <span>{isSerialConnected ? 'Nano Berhubung' : 'Sambung USB Nano'}</span>
+            </button>
+          )}
 
           {/* Theme Toggle (Light / Dark) */}
           <button

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import type { WeatherStationStatus, WeatherStationLog } from './types';
 import { Header } from './components/Header';
@@ -7,6 +7,7 @@ import { StationChart } from './components/StationChart';
 import { RecentEventsTable } from './components/RecentEventsTable';
 import { ToastNotification } from './components/ToastNotification';
 import { useWeatherNotifications } from './hooks/useWeatherNotifications';
+import { useWebSerial, type NanoTelemetry } from './hooks/useWebSerial';
 import { AlertTriangle, ExternalLink, Cpu } from 'lucide-react';
 
 const DEFAULT_STATUS: WeatherStationStatus = {
@@ -33,6 +34,78 @@ export const App: React.FC = () => {
   const [isStationOnline, setIsStationOnline] = useState(false);
   const [lastUpdatedTime, setLastUpdatedTime] = useState<string>('Memuatkan...');
   const [isLoading, setIsLoading] = useState(true);
+
+  // Web Serial Sync Timers (Throttle cloud updates to avoid hammering Supabase)
+  const lastCloudSyncRef = useRef<number>(0);
+  const lastLogSyncRef = useRef<number>(0);
+
+  // Real-time Telemetry Handler from Arduino Nano via USB Serial
+  const handleNanoTelemetry = useCallback(async (data: NanoTelemetry) => {
+    const now = Date.now();
+    const nowIso = new Date().toISOString();
+
+    setStatus((prev) => ({
+      ...prev,
+      temperature_c: data.temp !== undefined ? data.temp : prev.temperature_c,
+      air_humidity_pct: data.hum !== undefined ? data.hum : prev.air_humidity_pct,
+      heat_index_c: data.hi !== undefined ? data.hi : prev.heat_index_c,
+      light_pct: data.light !== undefined ? data.light : prev.light_pct,
+      raw_ldr_adc: data.raw_ldr !== undefined ? data.raw_ldr : prev.raw_ldr_adc,
+      is_night: data.night !== undefined ? data.night : prev.is_night,
+      buzzer_active: data.buzzer !== undefined ? data.buzzer : prev.buzzer_active,
+      buzzer_enabled: data.buzzer_en !== undefined ? data.buzzer_en : prev.buzzer_enabled,
+      buzzer_reason: data.reason || prev.buzzer_reason,
+      updated_at: nowIso,
+    }));
+
+    setIsStationOnline(true);
+    setLastUpdatedTime(new Date().toLocaleTimeString('ms-MY', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }));
+
+    // Forward status to Supabase every 3 seconds for remote dashboard synchronization
+    if (now - lastCloudSyncRef.current > 3000) {
+      lastCloudSyncRef.current = now;
+      supabase
+        .from('weather_station_status')
+        .upsert({
+          id: 1,
+          temperature_c: data.temp,
+          air_humidity_pct: data.hum,
+          heat_index_c: data.hi,
+          light_pct: data.light,
+          raw_ldr_adc: data.raw_ldr,
+          is_night: data.night,
+          buzzer_active: data.buzzer,
+          buzzer_enabled: data.buzzer_en,
+          buzzer_reason: data.reason,
+          updated_at: nowIso,
+        })
+        .then();
+    }
+
+    // Insert log history to Supabase every 60 seconds
+    if (now - lastLogSyncRef.current > 60000) {
+      lastLogSyncRef.current = now;
+      supabase
+        .from('weather_station_logs')
+        .insert({
+          temperature_c: data.temp,
+          air_humidity_pct: data.hum,
+          heat_index_c: data.hi,
+          light_pct: data.light,
+          raw_ldr_adc: data.raw_ldr,
+          is_night: data.night,
+          buzzer_state: data.buzzer,
+          recorded_at: nowIso,
+        })
+        .then();
+    }
+  }, []);
+
+  const webSerial = useWebSerial(handleNanoTelemetry);
 
   // Weather & Climate Push Notification System
   const {
@@ -163,6 +236,11 @@ export const App: React.FC = () => {
     // Optimistic UI update
     setStatus((prev) => ({ ...prev, buzzer_enabled: newMuteState }));
 
+    // Send directly over Web Serial USB if connected to Arduino Nano
+    if (webSerial.isConnected) {
+      webSerial.sendCommand(newMuteState ? 'UNMUTE' : 'MUTE');
+    }
+
     await supabase
       .from('weather_station_status')
       .update({ buzzer_enabled: newMuteState })
@@ -176,6 +254,11 @@ export const App: React.FC = () => {
 
   // Handle Manual 2-Second Buzzer Test
   const handleTestBuzzer = async () => {
+    // Send directly over Web Serial USB if connected to Arduino Nano
+    if (webSerial.isConnected) {
+      webSerial.sendCommand('TEST_BUZZER');
+    }
+
     await supabase.from('weather_station_commands').insert({
       action: 'TEST_BUZZER_2S',
       status: 'PENDING',
@@ -191,6 +274,10 @@ export const App: React.FC = () => {
       <Header
         isCloudConnected={isCloudConnected}
         isStationOnline={isStationOnline}
+        isSerialConnected={webSerial.isConnected}
+        isSerialSupported={webSerial.isSupported}
+        onConnectSerial={webSerial.connect}
+        onDisconnectSerial={webSerial.disconnect}
         lastUpdated={lastUpdatedTime}
         buzzerEnabled={status.buzzer_enabled}
         buzzerActive={status.buzzer_active}
@@ -210,16 +297,16 @@ export const App: React.FC = () => {
       />
 
       {/* Offline Alert Banner */}
-      {!isStationOnline && !isLoading && (
+      {!isStationOnline && !isLoading && !webSerial.isConnected && (
         <div className="mb-6 p-4 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 text-rose-800 dark:text-rose-300 flex items-center justify-between shadow-lg animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-500/20 flex items-center justify-center flex-shrink-0">
               <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
             </div>
             <div>
-              <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">ESP32 Luar Talian (Offline)</h4>
+              <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Stesen Luar Talian (Offline)</h4>
               <p className="text-xs text-slate-600 dark:text-rose-300/80">
-                Tiada data diterima daripada mikropengawal ESP32 dalam tempoh 90 saat. Sila pastikan bekalan kuasa 5V dan hotspot WiFi aktif.
+                Tiada telemetri dikesan daripada Arduino Nano (kabel USB) atau awan Supabase. Sila sambungkan kabel USB dan klik butang 'Sambung USB Nano' di atas.
               </p>
             </div>
           </div>
