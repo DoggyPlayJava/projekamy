@@ -46,6 +46,33 @@ export function useWebSerial(onTelemetry?: (data: NanoTelemetry) => void) {
     }
   }, []);
 
+  // Disconnect from Arduino Nano
+  const disconnect = useCallback(async () => {
+    keepReadingRef.current = false;
+    try {
+      if (readerRef.current) {
+        try {
+          await readerRef.current.cancel();
+        } catch {}
+        try {
+          readerRef.current.releaseLock();
+        } catch {}
+        readerRef.current = null;
+      }
+      if (portRef.current) {
+        try {
+          await portRef.current.close();
+        } catch {}
+        portRef.current = null;
+      }
+    } catch (err) {
+      console.warn('[WebSerial] Ralat semasa menutup port:', err);
+    } finally {
+      setIsConnected(false);
+      setPortName(null);
+    }
+  }, []);
+
   // Connect to Arduino Nano via Web Serial
   const connect = useCallback(async () => {
     setLastError(null);
@@ -55,6 +82,11 @@ export function useWebSerial(onTelemetry?: (data: NanoTelemetry) => void) {
     }
 
     try {
+      // If previous port or reader is still held, close it cleanly first
+      if (portRef.current) {
+        await disconnect();
+      }
+
       // 1. Prompt user to select COM Port
       const port = await (navigator as any).serial.requestPort();
 
@@ -65,12 +97,10 @@ export function useWebSerial(onTelemetry?: (data: NanoTelemetry) => void) {
       setPortName('Arduino Nano USB');
       keepReadingRef.current = true;
 
-      // 3. Read stream line-by-line
-      const textDecoder = new TextDecoderStream();
-      port.readable.pipeTo(textDecoder.writable).catch(() => {});
-      const reader = textDecoder.readable.getReader();
+      // 3. Read stream directly without pipeTo to avoid locking issues
+      const reader = port.readable.getReader();
       readerRef.current = reader;
-
+      const decoder = new TextDecoder();
       let buffer = '';
 
       const readLoop = async () => {
@@ -79,7 +109,7 @@ export function useWebSerial(onTelemetry?: (data: NanoTelemetry) => void) {
             const { value, done } = await reader.read();
             if (done) break;
             if (value) {
-              buffer += value;
+              buffer += decoder.decode(value, { stream: true });
               const lines = buffer.split('\n');
               buffer = lines.pop() || ''; // keep uncompleted line
 
@@ -104,6 +134,10 @@ export function useWebSerial(onTelemetry?: (data: NanoTelemetry) => void) {
             setLastError(err.message || 'Sambungan bersiri terputus.');
           }
         } finally {
+          try {
+            reader.releaseLock();
+          } catch {}
+          readerRef.current = null;
           setIsConnected(false);
           setPortName(null);
         }
@@ -129,27 +163,7 @@ export function useWebSerial(onTelemetry?: (data: NanoTelemetry) => void) {
       setIsConnected(false);
       setPortName(null);
     }
-  }, []);
-
-  // Disconnect from Arduino Nano
-  const disconnect = useCallback(async () => {
-    keepReadingRef.current = false;
-    try {
-      if (readerRef.current) {
-        await readerRef.current.cancel();
-        readerRef.current = null;
-      }
-      if (portRef.current) {
-        await portRef.current.close();
-        portRef.current = null;
-      }
-    } catch (err) {
-      console.warn('[WebSerial] Ralat semasa menutup port:', err);
-    } finally {
-      setIsConnected(false);
-      setPortName(null);
-    }
-  }, []);
+  }, [disconnect]);
 
   // Send Command to Arduino Nano (e.g., TEST_BUZZER, MUTE, UNMUTE)
   const sendCommand = useCallback(async (cmd: string): Promise<boolean> => {
