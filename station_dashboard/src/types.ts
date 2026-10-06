@@ -9,6 +9,8 @@ export interface WeatherStationStatus {
   is_night: boolean;
   buzzer_active: boolean;
   buzzer_enabled: boolean;
+  led_active?: boolean;
+  interrupt_count?: number;
   buzzer_reason: string;
   sensor_connected: boolean;
   updated_at: string;

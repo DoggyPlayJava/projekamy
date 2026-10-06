@@ -116,9 +116,11 @@ export const Header: React.FC<HeaderProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-extrabold tracking-widest uppercase px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
-                POLISAS IoT
+                DEC30182 POLISAS
               </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Stesen Cuaca Pintar</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium hidden sm:inline">
+                Nano D2(DHT) • D3(INT1) • D7(LED) • D8(BZ) • A0(LDR)
+              </span>
             </div>
             <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
               Stesen Amaran Cuaca & Iklim

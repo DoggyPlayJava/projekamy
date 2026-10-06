@@ -9,6 +9,8 @@ export interface NanoTelemetry {
   night?: boolean;
   buzzer?: boolean;
   buzzer_en?: boolean;
+  led?: boolean;
+  int_cnt?: number;
   reason?: string;
   uptime?: number;
 }

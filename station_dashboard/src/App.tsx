@@ -21,6 +21,8 @@ const DEFAULT_STATUS: WeatherStationStatus = {
   is_night: false,
   buzzer_active: false,
   buzzer_enabled: true,
+  led_active: false,
+  interrupt_count: 0,
   buzzer_reason: 'STANDBY',
   sensor_connected: true,
   updated_at: new Date().toISOString(),
@@ -63,6 +65,8 @@ export const App: React.FC = () => {
       is_night: data.night !== undefined ? data.night : prev.is_night,
       buzzer_active: data.buzzer !== undefined ? data.buzzer : prev.buzzer_active,
       buzzer_enabled: data.buzzer_en !== undefined ? data.buzzer_en : prev.buzzer_enabled,
+      led_active: data.led !== undefined ? data.led : prev.led_active,
+      interrupt_count: data.int_cnt !== undefined ? data.int_cnt : prev.interrupt_count,
       buzzer_reason: data.reason || prev.buzzer_reason,
       updated_at: nowIso,
     }));

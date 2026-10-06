@@ -315,18 +315,23 @@ export const WeatherCards: React.FC<WeatherCardsProps> = ({ status }) => {
           {/* Card Meta Bar */}
           <div className="flex items-center justify-between gap-2 mb-4">
             <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-lg border ${
-              status.buzzer_active 
+              status.buzzer_active || status.led_active
                 ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30' 
                 : 'bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10'
             }`}>
-              Indeks Haba & Penggera
+              Dwi-Output & Sampukan
             </span>
-            <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/5">
-              Nano D8 (Active LOW)
-            </span>
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/5">
+                D8 Buzzer
+              </span>
+              <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/5">
+                D7 LED
+              </span>
+            </div>
           </div>
 
-          {/* Primary Stat: Heat Index & Buzzer Status */}
+          {/* Primary Stat: Heat Index & Dual Output Status */}
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Suhu Dirasai (*Heat Index*)</p>
@@ -339,15 +344,23 @@ export const WeatherCards: React.FC<WeatherCardsProps> = ({ status }) => {
                   {heatIndexText}
                 </span>
               </div>
-              <p className="text-xs font-semibold mt-1">
-                Buzzer: <span className={status.buzzer_active ? 'text-rose-600 dark:text-rose-400 font-black animate-pulse' : 'text-slate-600 dark:text-slate-300'}>
-                  {status.buzzer_active ? 'BUNYI AKTIF!' : status.buzzer_enabled ? 'Sedia (Standby)' : 'Disenyapkan'}
-                </span>
-              </p>
+              <div className="flex flex-col gap-0.5 mt-1.5 text-xs font-semibold">
+                <p>
+                  Buzzer (D8): <span className={status.buzzer_active ? 'text-rose-600 dark:text-rose-400 font-black animate-pulse' : 'text-slate-600 dark:text-slate-300'}>
+                    {status.buzzer_active ? 'BUNYI AKTIF!' : status.buzzer_enabled ? 'Sedia (Standby)' : 'Disenyapkan'}
+                  </span>
+                </p>
+                <p className="flex items-center gap-1.5">
+                  LED Amaran (D7): <span className={`inline-flex items-center gap-1 ${status.led_active ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-500 dark:text-slate-400'}`}>
+                    <span className={`w-2 h-2 rounded-full ${status.led_active ? 'bg-rose-500 animate-ping' : 'bg-slate-400 dark:bg-slate-600'}`} />
+                    {status.led_active ? 'MENYALA' : 'Padam / Detik'}
+                  </span>
+                </p>
+              </div>
             </div>
 
             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center relative ${
-              status.buzzer_active 
+              status.buzzer_active || status.led_active
                 ? 'bg-rose-500/25 text-rose-600 dark:text-rose-300 border border-rose-500/50 shadow-xl shadow-rose-500/20' 
                 : !status.buzzer_enabled
                 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-white/5'
@@ -358,18 +371,23 @@ export const WeatherCards: React.FC<WeatherCardsProps> = ({ status }) => {
               ) : (
                 <VolumeX className="w-7 h-7 text-slate-400 dark:text-slate-500" />
               )}
-              {status.buzzer_active && (
+              {(status.buzzer_active || status.led_active) && (
                 <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-rose-500 animate-ping" />
               )}
             </div>
           </div>
         </div>
 
-        {/* Reason Box */}
+        {/* Reason Box & Hardware Interrupt Counter */}
         <div>
-          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Status Penggera Semasa:</p>
+          <div className="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
+            <span>Status Penggera Semasa:</span>
+            <span className="font-mono text-[10px] text-cyan-600 dark:text-cyan-400">
+              INT1 Suis (D3): {status.interrupt_count ?? 0}
+            </span>
+          </div>
           <div className={`px-3 py-2 rounded-xl border text-xs font-black truncate ${
-            status.buzzer_active
+            status.buzzer_active || status.led_active
               ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/40'
               : 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-white/5'
           }`}>
@@ -377,7 +395,7 @@ export const WeatherCards: React.FC<WeatherCardsProps> = ({ status }) => {
           </div>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-2 flex items-center gap-1">
             <Zap className="w-3 h-3 text-rose-500 dark:text-rose-400" />
-            Ambang amaran: Suhu &gt; 35°C | Udara &lt; 40%
+            Ambang amaran: Suhu &gt; 35°C | Udara &lt; 40% | INT1: Pin D3
           </p>
         </div>
       </div>
